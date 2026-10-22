@@ -170,9 +170,9 @@
 
         #popupBox {
             background: #fff;
-            padding: 20px;
+            padding: 16px;
             border-radius: 12px;
-            width: 380px;
+            width: 440px;
             max-width: calc(100vw - 30px);
             box-shadow: 0 20px 50px rgba(0,0,0,0.3);
             position: relative;
@@ -201,7 +201,7 @@
             font-weight: 700;
             font-size: 0.95rem;
             color: #1a5c30;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
 
         .popup-details {
@@ -209,13 +209,19 @@
             overflow-y: auto;
         }
 
-        .price-section { margin-top: 14px; padding: 12px; border: 1px solid #e3e9e5; border-radius: 10px; background: #f8faf9; }
+        .price-section { margin-top: 8px; padding: 10px; border: 1px solid #e3e9e5; border-radius: 10px; background: #f8faf9; }
         .price-section-title { font-size: .78rem; font-weight: 700; color: #315f31; margin-bottom: 8px; }
         .price-section .popup-row:last-child { margin-bottom: 0; }
         .price-section-cash { background: #eff8f0; border-color: #cfe7d3; }
-        .price-plan { padding: 9px 0; border-top: 1px solid #e3e9e5; }
-        .price-plan:first-of-type { border-top: 0; }
-        .price-plan-title { display: inline-block; font-size: .73rem; font-weight: 700; color: #315f31; background: #e5efdf; border-radius: 5px; padding: 3px 7px; margin-bottom: 7px; }
+        .price-plans { width: 100%; font-size: .75rem; border-collapse: collapse; }
+        .price-plans th { color: #6b7280; font-size: .68rem; font-weight: 500; }
+        .price-plans th, .price-plans td { padding: 6px 0; text-align: right; white-space: nowrap; }
+        .price-plans th:first-child, .price-plans td:first-child { text-align: left; }
+        .price-plans tbody tr { border-top: 1px solid #e3e9e5; }
+        .price-plans td { color: #111827; font-weight: 600; }
+        .kpr-prices { padding: 10px; margin-top: 8px; background: #f0f6fa; border: 1px solid #dbe7ef; border-radius: 10px; }
+        .kpr-prices .popup-price { margin: 0 0 6px; padding: 0; border: 0; gap: 8px; }
+        .kpr-prices .popup-row { margin: 0; gap: 8px; }
         .price-section .popup-value { white-space: nowrap; }
         .popup-arrow { position: absolute; width: 16px; height: 16px; background: white; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; bottom: -9px; transform: translateX(-50%) rotate(45deg); }
         #popupConnector { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 9998; pointer-events: none; display: none; }
@@ -227,7 +233,7 @@
         .popup-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
             font-size: 0.8rem;
         }
 
@@ -423,9 +429,15 @@
                 <span class="popup-value"><span id="p_luas_bangunan">-</span> m²</span>
             </div>
 
+            <div class="kpr-prices">
             <div class="popup-price">
                 <span class="popup-label font-weight-bold" id="p_total_label">Total Harga</span>
                 <span class="value"><span id="p_currency">Rp</span> <span id="p_hrg_jual">0</span></span>
+            </div>
+            <div class="popup-row">
+                <span class="popup-label">Plafon KPR</span>
+                <span class="popup-value" id="p_plafon_kpr">-</span>
+            </div>
             </div>
             <div id="p_payment_prices" style="display:none;">
                 <div class="price-section price-section-cash">
@@ -435,13 +447,18 @@
                 <div class="price-section">
                     <div class="price-section-title">CASH BERTAHAP</div>
                     <div class="popup-row"><span class="popup-label">DP 50%</span><span class="popup-value" id="p_dp_cash_bertahap">-</span></div>
-                    @foreach ([3, 6, 12] as $tenor)
-                        <div class="price-plan">
-                            <div class="price-plan-title">{{ $tenor }}x / {{ $tenor }} bulan</div>
-                            <div class="popup-row"><span class="popup-label">Total harga</span><span class="popup-value" id="p_harga_bertahap_{{ $tenor }}">-</span></div>
-                            <div class="popup-row"><span class="popup-label">Cicilan / bulan</span><span class="popup-value" id="p_cicilan_{{ $tenor }}">-</span></div>
-                        </div>
-                    @endforeach
+                    <table class="price-plans" aria-label="Pilihan harga cash bertahap dengan DP 50%">
+                        <thead><tr><th scope="col">Tenor</th><th scope="col">Total harga</th><th scope="col">Cicilan / bulan</th></tr></thead>
+                        <tbody>
+                        @foreach ([3, 6, 12] as $tenor)
+                            <tr>
+                                <td>{{ $tenor }} bulan</td>
+                                <td id="p_harga_bertahap_{{ $tenor }}">-</td>
+                                <td id="p_cicilan_{{ $tenor }}">-</td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
                 </div>
             </div>
             </div>
@@ -475,8 +492,7 @@
             const aboveSpace = targetRect.top - margin - gap;
             const belowSpace = winH - targetRect.bottom - margin - gap;
             const above = aboveSpace >= 260 || aboveSpace >= belowSpace;
-            const availableHeight = above ? aboveSpace : belowSpace;
-            $('.popup-details').css('max-height', Math.max(160, Math.min(winH - 110, availableHeight - 76)) + 'px');
+            $('.popup-details').css('max-height', Math.max(80, winH - margin * 2 - 66) + 'px');
             const popupWidth = popupBox.offsetWidth, popupHeight = popupBox.offsetHeight;
             const left = Math.max(margin, Math.min(targetX - popupWidth / 2, winW - popupWidth - margin));
             let top = above ? targetRect.top - popupHeight - gap : targetRect.bottom + gap;
@@ -511,7 +527,9 @@
                     const priceFields = @json(array_keys(\App\Services\KavlingPricing::FIELDS));
                     const hasPaymentPrices = priceFields.some(field => Number(res.data[field]) > 0);
                     $('#p_payment_prices').toggle(hasPaymentPrices);
-                    $('#p_total_label').text(hasPaymentPrices ? 'Harga KPR' : 'Total Harga');
+                    $('#p_total_label').text('Harga KPR');
+                    const plafon = Number(res.data.plafon_kpr);
+                    $('#p_plafon_kpr').text(plafon > 0 ? 'Rp ' + plafon.toLocaleString('id-ID') : 'Belum tersedia');
                     priceFields.forEach(function(field) {
                         const value = Number(res.data[field]);
                         $('#p_' + field).text(value > 0 ? 'Rp ' + value.toLocaleString('id-ID') : 'Belum tersedia');

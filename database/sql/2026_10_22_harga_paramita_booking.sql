@@ -176,9 +176,9 @@ INSERT INTO apma_harga_rev (kode, lb, lt, harga_cash, dp_cash_bertahap, harga_be
 ('A-04', 40, 76, 607200000, 303600000, 625416000, 107272000, 643632000, 56672000, 661848000, 29854000),
 ('A-06', 40, 120, 811400000, 405700000, 835742000, 143347333, 860084000, 75730667, 884426000, 39893833);
 START TRANSACTION;
-SET @apma_location_count = (SELECT COUNT(*) FROM lokasi_kavling WHERE LOWER(TRIM(nama_kavling)) = 'paramita residence');
-SET @apma_match_count = (SELECT COUNT(*) FROM kavling_peta k JOIN lokasi_kavling l ON l.id = k.id_lokasi JOIN apma_harga_rev h ON h.kode = CONCAT(LEFT(UPPER(TRIM(k.kode_kavling)), 1), '-', LPAD(CAST(SUBSTRING(REPLACE(UPPER(TRIM(k.kode_kavling)), '-', ''), 2) AS UNSIGNED), 2, '0')) AND k.luas_bangunan = h.lb AND k.luas_tanah = h.lt WHERE LOWER(TRIM(l.nama_kavling)) = 'paramita residence');
-SET @apma_distinct_count = (SELECT COUNT(DISTINCT h.kode) FROM kavling_peta k JOIN lokasi_kavling l ON l.id = k.id_lokasi JOIN apma_harga_rev h ON h.kode = CONCAT(LEFT(UPPER(TRIM(k.kode_kavling)), 1), '-', LPAD(CAST(SUBSTRING(REPLACE(UPPER(TRIM(k.kode_kavling)), '-', ''), 2) AS UNSIGNED), 2, '0')) AND k.luas_bangunan = h.lb AND k.luas_tanah = h.lt WHERE LOWER(TRIM(l.nama_kavling)) = 'paramita residence');
+SET @apma_location_count = (SELECT COUNT(*) FROM lokasi_kavling WHERE LOWER(TRIM(nama_kavling)) IN ('pramita residence', 'paramita residence'));
+SET @apma_match_count = (SELECT COUNT(*) FROM kavling_peta k JOIN lokasi_kavling l ON l.id = k.id_lokasi JOIN apma_harga_rev h ON h.kode = CONCAT(LEFT(UPPER(TRIM(k.kode_kavling)), 1), '-', LPAD(CAST(SUBSTRING(REPLACE(UPPER(TRIM(k.kode_kavling)), '-', ''), 2) AS UNSIGNED), 2, '0')) AND k.luas_bangunan = h.lb AND k.luas_tanah = h.lt WHERE LOWER(TRIM(l.nama_kavling)) IN ('pramita residence', 'paramita residence'));
+SET @apma_distinct_count = (SELECT COUNT(DISTINCT h.kode) FROM kavling_peta k JOIN lokasi_kavling l ON l.id = k.id_lokasi JOIN apma_harga_rev h ON h.kode = CONCAT(LEFT(UPPER(TRIM(k.kode_kavling)), 1), '-', LPAD(CAST(SUBSTRING(REPLACE(UPPER(TRIM(k.kode_kavling)), '-', ''), 2) AS UNSIGNED), 2, '0')) AND k.luas_bangunan = h.lb AND k.luas_tanah = h.lt WHERE LOWER(TRIM(l.nama_kavling)) IN ('pramita residence', 'paramita residence'));
 -- Update hanya berjalan jika seluruh 96 unit dan luasnya cocok tepat satu.
 UPDATE kavling_peta k
 JOIN lokasi_kavling l ON l.id = k.id_lokasi
@@ -191,7 +191,7 @@ SET k.harga_cash = h.harga_cash,
     k.cicilan_6 = h.cicilan_6,
     k.harga_bertahap_12 = h.harga_bertahap_12,
     k.cicilan_12 = h.cicilan_12
-WHERE LOWER(TRIM(l.nama_kavling)) = 'paramita residence'
+WHERE LOWER(TRIM(l.nama_kavling)) IN ('pramita residence', 'paramita residence')
   AND k.luas_bangunan = h.lb AND k.luas_tanah = h.lt
   AND @apma_location_count = 1 AND @apma_match_count = 96 AND @apma_distinct_count = 96;
 -- Tandai migrasi skema agar artisan migrate tidak menambah ulang kolom.

@@ -166,9 +166,9 @@ INSERT INTO apma_dp30_units (kode, lb, lt) VALUES
 ('A-06', 40, 120);
 
 START TRANSACTION;
-SET @apma_dp30_locations = (SELECT COUNT(*) FROM lokasi_kavling WHERE LOWER(TRIM(nama_kavling)) = 'paramita residence');
-SET @apma_dp30_matches = (SELECT COUNT(*) FROM kavling_peta k JOIN lokasi_kavling l ON l.id = k.id_lokasi JOIN apma_dp30_units u ON u.kode = CONCAT(LEFT(UPPER(TRIM(k.kode_kavling)), 1), '-', LPAD(CAST(SUBSTRING(REPLACE(UPPER(TRIM(k.kode_kavling)), '-', ''), 2) AS UNSIGNED), 2, '0')) WHERE LOWER(TRIM(l.nama_kavling)) = 'paramita residence' AND k.luas_bangunan = u.lb AND k.luas_tanah = u.lt AND k.harga_cash > 0 AND k.harga_bertahap_3 > ROUND(k.harga_cash * 0.30) AND k.harga_bertahap_6 > ROUND(k.harga_cash * 0.30) AND k.harga_bertahap_12 > ROUND(k.harga_cash * 0.30));
-SET @apma_dp30_distinct = (SELECT COUNT(DISTINCT u.kode) FROM kavling_peta k JOIN lokasi_kavling l ON l.id = k.id_lokasi JOIN apma_dp30_units u ON u.kode = CONCAT(LEFT(UPPER(TRIM(k.kode_kavling)), 1), '-', LPAD(CAST(SUBSTRING(REPLACE(UPPER(TRIM(k.kode_kavling)), '-', ''), 2) AS UNSIGNED), 2, '0')) WHERE LOWER(TRIM(l.nama_kavling)) = 'paramita residence' AND k.luas_bangunan = u.lb AND k.luas_tanah = u.lt AND k.harga_cash > 0 AND k.harga_bertahap_3 > ROUND(k.harga_cash * 0.30) AND k.harga_bertahap_6 > ROUND(k.harga_cash * 0.30) AND k.harga_bertahap_12 > ROUND(k.harga_cash * 0.30));
+SET @apma_dp30_locations = (SELECT COUNT(*) FROM lokasi_kavling WHERE LOWER(TRIM(nama_kavling)) IN ('pramita residence', 'paramita residence'));
+SET @apma_dp30_matches = (SELECT COUNT(*) FROM kavling_peta k JOIN lokasi_kavling l ON l.id = k.id_lokasi JOIN apma_dp30_units u ON u.kode = CONCAT(LEFT(UPPER(TRIM(k.kode_kavling)), 1), '-', LPAD(CAST(SUBSTRING(REPLACE(UPPER(TRIM(k.kode_kavling)), '-', ''), 2) AS UNSIGNED), 2, '0')) WHERE LOWER(TRIM(l.nama_kavling)) IN ('pramita residence', 'paramita residence') AND k.luas_bangunan = u.lb AND k.luas_tanah = u.lt AND k.harga_cash > 0 AND k.harga_bertahap_3 > ROUND(k.harga_cash * 0.30) AND k.harga_bertahap_6 > ROUND(k.harga_cash * 0.30) AND k.harga_bertahap_12 > ROUND(k.harga_cash * 0.30));
+SET @apma_dp30_distinct = (SELECT COUNT(DISTINCT u.kode) FROM kavling_peta k JOIN lokasi_kavling l ON l.id = k.id_lokasi JOIN apma_dp30_units u ON u.kode = CONCAT(LEFT(UPPER(TRIM(k.kode_kavling)), 1), '-', LPAD(CAST(SUBSTRING(REPLACE(UPPER(TRIM(k.kode_kavling)), '-', ''), 2) AS UNSIGNED), 2, '0')) WHERE LOWER(TRIM(l.nama_kavling)) IN ('pramita residence', 'paramita residence') AND k.luas_bangunan = u.lb AND k.luas_tanah = u.lt AND k.harga_cash > 0 AND k.harga_bertahap_3 > ROUND(k.harga_cash * 0.30) AND k.harga_bertahap_6 > ROUND(k.harga_cash * 0.30) AND k.harga_bertahap_12 > ROUND(k.harga_cash * 0.30));
 UPDATE kavling_peta k JOIN lokasi_kavling l ON l.id = k.id_lokasi JOIN apma_dp30_units u ON u.kode = CONCAT(LEFT(UPPER(TRIM(k.kode_kavling)), 1), '-', LPAD(CAST(SUBSTRING(REPLACE(UPPER(TRIM(k.kode_kavling)), '-', ''), 2) AS UNSIGNED), 2, '0'))
 SET k.dp_cash_bertahap_30 = ROUND(k.harga_cash * 0.30),
     k.harga_bertahap_3_dp30 = k.harga_bertahap_3,
@@ -177,7 +177,7 @@ SET k.dp_cash_bertahap_30 = ROUND(k.harga_cash * 0.30),
     k.cicilan_6_dp30 = ROUND((k.harga_bertahap_6 - ROUND(k.harga_cash * 0.30)) / 6),
     k.harga_bertahap_12_dp30 = k.harga_bertahap_12,
     k.cicilan_12_dp30 = ROUND((k.harga_bertahap_12 - ROUND(k.harga_cash * 0.30)) / 12)
-WHERE LOWER(TRIM(l.nama_kavling)) = 'paramita residence' AND k.luas_bangunan = u.lb AND k.luas_tanah = u.lt AND k.harga_cash > 0 AND k.harga_bertahap_3 > ROUND(k.harga_cash * 0.30) AND k.harga_bertahap_6 > ROUND(k.harga_cash * 0.30) AND k.harga_bertahap_12 > ROUND(k.harga_cash * 0.30)
+WHERE LOWER(TRIM(l.nama_kavling)) IN ('pramita residence', 'paramita residence') AND k.luas_bangunan = u.lb AND k.luas_tanah = u.lt AND k.harga_cash > 0 AND k.harga_bertahap_3 > ROUND(k.harga_cash * 0.30) AND k.harga_bertahap_6 > ROUND(k.harga_cash * 0.30) AND k.harga_bertahap_12 > ROUND(k.harga_cash * 0.30)
 AND @apma_dp30_locations = 1 AND @apma_dp30_matches = 96 AND @apma_dp30_distinct = 96;
 COMMIT;
 SELECT IF(@apma_dp30_locations = 1 AND @apma_dp30_matches = 96 AND @apma_dp30_distinct = 96, 'BERHASIL: DP 30% untuk 96 unit Paramita tersimpan', 'DP 30% BELUM DIUPDATE: cek lokasi, kode, luas, dan kelengkapan harga dasar') AS hasil_import, @apma_dp30_matches AS unit_cocok;

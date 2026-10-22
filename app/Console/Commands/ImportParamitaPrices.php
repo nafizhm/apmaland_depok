@@ -16,7 +16,7 @@ class ImportParamitaPrices extends Command
 
     public function handle(): int
     {
-        $locations = LokasiKavling::whereRaw('LOWER(nama_kavling) = ?', ['paramita residence'])->get();
+        $locations = LokasiKavling::whereRaw('LOWER(TRIM(nama_kavling)) IN (?, ?)', ['pramita residence', 'paramita residence'])->get();
         if ($locations->count() !== 1) {
             $this->error('Lokasi paramita residence harus cocok tepat satu.');
             return self::FAILURE;
