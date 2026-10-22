@@ -541,6 +541,7 @@ class PengajuanHoldController extends Controller
         return response()->json([
             'quote' => $quote,
             'harga_cash' => $data->harga_cash,
+            'plafon_kpr' => $data->plafon_kpr,
             'rincian_biaya' => $rincian,
             'total_harga'   => $total,
             'formatted'     => $formatted,

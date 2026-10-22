@@ -1039,6 +1039,9 @@
                 const id = $('#id_kavling').val();
                 const method = $('#jenis_pembelian').val();
                 const bertahap = method === 'Cash Bertahap';
+                if (bertahap && !$('#termin_x_cash_b').val()) {
+                    $('#termin_x_cash_b').val('3');
+                }
                 $('#row-tenor').toggle(bertahap);
                 $('#termin_x_cash_b').prop('disabled', !bertahap).prop('required', bertahap);
                 $('#ringkasan-pembayaran').empty();
@@ -1055,7 +1058,7 @@
                 }).done(function(data) {
                     if (version !== priceVersion) return;
                     renderRincianHarga(data.rincian_biaya, data.total_harga);
-                    if (data.harga_cash != null && method) {
+                    if (method === 'KPR' || (data.harga_cash != null && method)) {
                         const quote = data.quote;
                         const fee = parseInt(($('#booking_fee').val() || '').replace(/\D/g, '')) || 0;
                         const money = value => 'Rp ' + value.toLocaleString('id-ID');
@@ -1070,6 +1073,7 @@
                         if (bertahap) {
                             const residual = quote.total_harga - quote.dp - quote.cicilan * (quote.tenor - 1);
                             $('<div class="payment-summary-title">').text('Ringkasan cash bertahap · ' + quote.tenor + ' bulan').appendTo(summary);
+                            addSummaryRow('Total harga · ' + quote.tenor + 'x', money(quote.total_harga), true);
                             addSummaryRow('DP 50%', money(quote.dp));
                             addSummaryRow('Booking fee (pengurang DP)', money(fee));
                             addSummaryRow('Sisa DP yang harus dibayar', money(Math.max(0, quote.dp - fee)), true);
@@ -1083,6 +1087,11 @@
                             addSummaryRow('Total harga', money(quote.total_harga));
                             addSummaryRow('Booking fee', money(fee));
                             addSummaryRow('Sisa pelunasan', money(Math.max(0, quote.total_harga - fee)), true);
+                            list.appendTo(summary);
+                        } else if (method === 'KPR') {
+                            $('<div class="payment-summary-title">').text('Ringkasan KPR').appendTo(summary);
+                            addSummaryRow('Harga KPR', money(quote.total_harga), true);
+                            addSummaryRow('Plafon KPR', data.plafon_kpr == null ? 'Belum ditentukan' : money(Number(data.plafon_kpr)), true);
                             list.appendTo(summary);
                         }
                         if (list.children().length) $('#ringkasan-pembayaran').append(summary);
