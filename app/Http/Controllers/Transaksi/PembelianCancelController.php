@@ -37,18 +37,6 @@ class PembelianCancelController extends Controller
                     $btn = '';
 
                     if ($permissions['hapus']) {
-                        $kavling = $row->customer?->kavling;
-
-                        if ($kavling && ($kavling->customer || $kavling->is_booked)) {
-                            return '
-            <button type="button"
-                class="btn btn-danger btn-sm"
-                disabled
-                title="Kavling sudah milik orang lain">
-                Batalkan
-            </button>
-        ';
-                        }
 
                         return '
         <form action="' . route('pembelian-cancel.destroy', $row->id) . '"
@@ -57,7 +45,7 @@ class PembelianCancelController extends Controller
             ' . csrf_field() . method_field('DELETE') . '
             <button type="submit"
                 class="delete-button btn btn-danger btn-sm">
-                Batalkan
+                Hapus
             </button>
         </form>
     ';
@@ -71,7 +59,9 @@ class PembelianCancelController extends Controller
         }
 
         $customers = Customer::select(['id', 'nama_lengkap'])
-            ->whereIn('id_status_progres', [2, 4, 7])->where('stt_arsip', 0)
+            ->where(function ($query) {
+                $query->where('stt_arsip', 0)->orWhereNull('stt_arsip');
+            })
             ->get();
 
         $tanggalSekarang = Carbon::now('Asia/Jakarta')->format('Y-m-d');
@@ -109,7 +99,12 @@ class PembelianCancelController extends Controller
         DB::beginTransaction();
         try {
 
-            $customer = Customer::with('kavling', 'lokasi')->find($request->id_customer);
+            $customer = Customer::with('kavling', 'lokasi')->lockForUpdate()->findOrFail($request->id_customer);
+            if ($customer->stt_arsip) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'id_customer' => 'Customer sudah diarsipkan. Muat ulang halaman dan pilih customer lain.',
+                ]);
+            }
 
             $lampiran_bukti_filename = null;
             if ($request->hasFile('lampiran_bukti')) {
@@ -142,11 +137,15 @@ class PembelianCancelController extends Controller
                 'id_kategori_transaksi' => 18,
                 'id_metode_bayar'       => 2,
                 'lampiran'              => $lampiran_bukti_filename ?? '',
-                'keterangan'            => 'Pembatalan Pembelian Unit ' . $customer->lokasi->nama_kavling . ' - ' . $customer->kavling->kode_kavling . ' atas nama ' . $customer->nama_lengkap,
+                'keterangan'            => 'Pembatalan Pembelian Unit ' . ($customer->lokasi?->nama_kavling ?? '-') . ' - ' . ($customer->kavling?->kode_kavling ?? '-') . ' atas nama ' . $customer->nama_lengkap,
             ]);
 
-            $customer->kavling->id_customer = null;
-            $customer->kavling->save();
+            if ($customer->kavling) {
+                $customer->kavling->id_customer = null;
+                $customer->kavling->save();
+            }
+
+            \App\Models\Piutang::where('id_customer', $customer->id)->delete();
 
             $customer->stt_arsip  = 1;
             $customer->id_kavling = null;
@@ -158,6 +157,9 @@ class PembelianCancelController extends Controller
                 'success' => true,
             ], 200);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            throw $e;
         } catch (\Exception $e) {
 
             DB::rollBack();
@@ -177,31 +179,6 @@ class PembelianCancelController extends Controller
 
             $data = PembelianCancel::with('customer.kavling')->findOrFail($id);
 
-            $customer = $data->customer;
-            $kavling  = $customer?->kavling;
-
-            Pengeluaran::where('id_pembelian_cancel', $data->id)->delete();
-
-            if ($customer) {
-                $customer->stt_arsip = 0;
-                $customer->save();
-            }
-
-            if ($kavling && $customer) {
-
-                $kavling->id_customer = $customer->id;
-                $kavling->save();
-
-                $customer->id_kavling = $kavling->id;
-                $customer->save();
-            }
-
-            if ($data->lampiran_bukti) {
-                $path = public_path('assets/keuangan/pengeluaran/' . $data->lampiran_bukti);
-                if (file_exists($path)) {
-                    unlink($path);
-                }
-            }
 
             $this->logDelete('Pembelian Cancel', $data->id);
             $data->delete();

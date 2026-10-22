@@ -407,6 +407,7 @@
                 data: formData,
                 contentType: false,
                 processData: false,
+                timeout: 60000,
                 success: function(response) {
                     $('#modalForm').modal('hide');
                     audio.play();
@@ -428,7 +429,7 @@
                             positionClass: "toast-bottom-right",
                         });
 
-                        let errors = xhr.responseJSON.errors;
+                        let errors = xhr.responseJSON?.errors || {};
                         $.each(errors, function(key, val) {
                             let input = $('#' + key);
                             input.addClass('is-invalid');
@@ -442,7 +443,18 @@
                         spinner.addClass('d-none');
                         btnText.text('Simpan');
                         submitBtn.prop('disabled', false);
+                    } else {
+                        const message = xhr.status === 419
+                            ? 'Sesi telah berakhir. Muat ulang halaman lalu coba kembali.'
+                            : (xhr.responseJSON?.error || xhr.responseJSON?.message ||
+                                'Penyimpanan belum dapat dikonfirmasi. Muat ulang daftar sebelum mencoba kembali.');
+                        toastr.error(message, 'GAGAL!');
                     }
+                },
+                complete: function() {
+                    spinner.addClass('d-none');
+                    btnText.text('Simpan');
+                    submitBtn.prop('disabled', false);
                 }
             });
         });
@@ -454,10 +466,10 @@
 
             Swal.fire({
                 title: 'Apakah Anda yakin?',
-                text: 'Pembelian Cancel ini akan dibatalkan!',
+                text: 'Data pembatalan akan dihapus dari daftar. Histori pembayaran tetap tersimpan.',
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonText: '<span class="swal-btn-text">Ya, Batalkan</span>',
+                confirmButtonText: '<span class="swal-btn-text">Ya, Hapus</span>',
                 cancelButtonText: 'Batal',
                 showLoaderOnConfirm: false,
                 buttonsStyling: false,
@@ -480,7 +492,7 @@
                             data: form.serialize(),
                             success: function() {
                                 audio.play();
-                                toastr.success("Pembelian Cancel telah dibatalkan!",
+                                toastr.success("Data pembatalan telah dihapus!",
                                     "BERHASIL", {
                                         progressBar: true,
                                         timeOut: 3500,
