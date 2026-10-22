@@ -130,7 +130,7 @@ class KavlingController extends Controller
             'luas_bangunan.required'  => 'Luas bangunan wajib diisi.',
         ];
 
-        foreach (array_keys(\App\Services\KavlingPricing::FIELDS) as $field) {
+        foreach (array_keys(\App\Services\KavlingPricing::fields()) as $field) {
             $rules[$field] = 'nullable|integer|min:1|max:999999999999';
         }
         $request->validate($rules, $messages);
@@ -210,7 +210,7 @@ class KavlingController extends Controller
                     : $data->rincian_biaya,
             ];
 
-            foreach (array_merge(['nama_cluster', 'diskon_dp', 'plafon_kpr'], array_keys(\App\Services\KavlingPricing::FIELDS)) as $field) {
+            foreach (array_merge(['nama_cluster', 'diskon_dp', 'plafon_kpr'], array_keys(\App\Services\KavlingPricing::fields())) as $field) {
                 if ($request->has($field)) $db[$field] = $request->input($field);
             }
             $data->update($db);

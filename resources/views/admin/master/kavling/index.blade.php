@@ -70,7 +70,7 @@
                                             <th>Cluster</th>
                                             <th>Diskon DP</th>
                                             <th>Plafon KPR</th>
-                                            @foreach (\App\Services\KavlingPricing::FIELDS as $label)<th>{{ $label }}</th>@endforeach
+                                            @foreach (\App\Services\KavlingPricing::fields() as $label)<th>{{ $label }}</th>@endforeach
                                             <th width="130px">Panjang</th>
                                             <th width="130px">Lebar</th>
                                             <th width="130px">Luas</th>
@@ -108,7 +108,7 @@
                             <label for="nama_cluster" class="col-sm-3 col-form-label">Cluster</label>
                             <div class="col-sm-8"><input name="nama_cluster" id="nama_cluster" class="form-control" maxlength="255"></div>
                         </div>
-                        @foreach (array_merge(['diskon_dp' => 'Diskon DP', 'plafon_kpr' => 'Plafon KPR'], \App\Services\KavlingPricing::FIELDS) as $field => $label)
+                        @foreach (array_merge(['diskon_dp' => 'Diskon DP', 'plafon_kpr' => 'Plafon KPR'], \App\Services\KavlingPricing::fields()) as $field => $label)
                             <div class="form-group row">
                                 <label for="{{ $field }}" class="col-sm-3 col-form-label">{{ $label }}</label>
                                 <div class="col-sm-8"><div class="input-group"><div class="input-group-prepend"><span class="input-group-text">Rp</span></div><input name="{{ $field }}" id="{{ $field }}" class="form-control format-number" inputmode="numeric"></div></div>
@@ -479,7 +479,7 @@
                     {
                         data: 'plafon_kpr', render: function(value) { return value == null ? '-' : 'Rp ' + formatNumber(value); }
                     },
-                    @foreach (\App\Services\KavlingPricing::FIELDS as $field => $label)
+                    @foreach (\App\Services\KavlingPricing::fields() as $field => $label)
                     { data: @json($field), defaultContent: '-', render: function(value) { return value == null ? '-' : 'Rp ' + formatNumber(value); } },
                     @endforeach
                     {
@@ -657,7 +657,7 @@
                     $('#nama_cluster').val(data.nama_cluster || '');
                     $('#diskon_dp').val(data.diskon_dp == null ? '' : formatNumber(data.diskon_dp));
                     $('#plafon_kpr').val(data.plafon_kpr == null ? '' : formatNumber(data.plafon_kpr));
-                    @foreach (\App\Services\KavlingPricing::FIELDS as $field => $label)
+                    @foreach (\App\Services\KavlingPricing::fields() as $field => $label)
                     $('#{{ $field }}').val(data[@json($field)] == null ? '' : formatNumber(data[@json($field)]));
                     @endforeach
                     $('#daya_listrik').val(formatNumber(data.daya_listrik));
@@ -794,7 +794,7 @@
             $('.invalid-feedback').remove();
 
             let formData = new FormData(this);
-            ['diskon_dp', 'plafon_kpr', ...@json(array_keys(\App\Services\KavlingPricing::FIELDS))].forEach(function(field) {
+            ['diskon_dp', 'plafon_kpr', ...@json(array_keys(\App\Services\KavlingPricing::fields()))].forEach(function(field) {
                 formData.set(field, $('#' + field).val().replace(/\D/g, ''));
             });
             deletedBiayaNames.forEach(function(name) {

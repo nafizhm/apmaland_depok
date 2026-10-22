@@ -699,6 +699,15 @@
                                     </div>
                                 </div>
 
+                                <div class="form-group row" id="row-dp-persen" style="display:none;">
+                                    <label class="control-label col-sm-3" for="dp_persen">Pilihan DP <span style="color:red;">*</span></label>
+                                    <div class="col-sm-9">
+                                        <select class="form-control" name="dp_persen" id="dp_persen" disabled>
+                                            <option value="50" selected>DP 50%</option>
+                                            <option value="30">DP 30%</option>
+                                        </select>
+                                    </div>
+                                </div>
                                 <div class="form-group row" id="row-tenor" style="display:none;">
                                     <label class="control-label col-sm-3" for="termin_x_cash_b">Pilihan Cicilan <span style="color:red;">*</span></label>
                                     <div class="col-sm-9">
@@ -1042,7 +1051,8 @@
                 if (bertahap && !$('#termin_x_cash_b').val()) {
                     $('#termin_x_cash_b').val('3');
                 }
-                $('#row-tenor').toggle(bertahap);
+                $('#row-tenor, #row-dp-persen').toggle(bertahap);
+                $('#dp_persen').prop('disabled', !bertahap).prop('required', bertahap);
                 $('#termin_x_cash_b').prop('disabled', !bertahap).prop('required', bertahap);
                 $('#ringkasan-pembayaran').empty();
                 renderRincianHarga([], 0);
@@ -1054,7 +1064,8 @@
                 $('#rincian-harga-container').text('Memuat harga...');
                 priceRequest = $.get(routeGetHarga.replace(':id', id), {
                     jenis_pembelian: method,
-                    termin_x_cash_b: bertahap ? $('#termin_x_cash_b').val() : ''
+                    termin_x_cash_b: bertahap ? $('#termin_x_cash_b').val() : '',
+                    dp_persen: bertahap ? $('#dp_persen').val() : 50
                 }).done(function(data) {
                     if (version !== priceVersion) return;
                     renderRincianHarga(data.rincian_biaya, data.total_harga);
@@ -1074,7 +1085,7 @@
                             const residual = quote.total_harga - quote.dp - quote.cicilan * (quote.tenor - 1);
                             $('<div class="payment-summary-title">').text('Ringkasan cash bertahap · ' + quote.tenor + ' bulan').appendTo(summary);
                             addSummaryRow('Total harga · ' + quote.tenor + 'x', money(quote.total_harga), true);
-                            addSummaryRow('DP 50%', money(quote.dp));
+                            addSummaryRow('DP ' + (quote.dp_persen || 50) + '%', money(quote.dp));
                             addSummaryRow('Booking fee (pengurang DP)', money(fee));
                             addSummaryRow('Sisa DP yang harus dibayar', money(Math.max(0, quote.dp - fee)), true);
                             addSummaryRow('Cicilan per bulan · ' + quote.tenor + 'x', money(quote.cicilan), true);
@@ -1102,7 +1113,7 @@
                     $('#rincian-harga-container').text(errors ? Object.values(errors).flat()[0] : 'Gagal memuat harga. Silakan pilih kavling kembali.');
                 });
             }
-            $('#id_kavling, #jenis_pembelian, #termin_x_cash_b').on('change', refreshHarga);
+            $('#id_kavling, #jenis_pembelian, #termin_x_cash_b, #dp_persen').on('change', refreshHarga);
             $('#booking_fee').on('change', refreshHarga);
 
         });

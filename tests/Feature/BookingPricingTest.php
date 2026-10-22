@@ -104,6 +104,16 @@ class BookingPricingTest extends TestCase
         $this->assertSame(96, KavlingPeta::where('id_lokasi', 6)->whereNotNull('harga_cash')->count());
         $this->assertSame(123, $other->fresh()->harga_cash);
         $this->assertSame(835742000, KavlingPeta::where('id_lokasi', 6)->where('kode_kavling', 'A-06')->first()->harga_bertahap_3);
+        foreach (KavlingPeta::where('id_lokasi', 6)->get() as $unit) {
+            $this->assertSame((int) round($unit->harga_cash * .3), $unit->dp_cash_bertahap_30);
+            foreach ([3, 6, 12] as $tenor) {
+                $quote = KavlingPricing::quote($unit, 'Cash Bertahap', $tenor, 30);
+                $this->assertSame($unit->{'harga_bertahap_' . $tenor}, $quote['total_harga']);
+                $this->assertSame((int) round(($quote['total_harga'] - $quote['dp']) / $tenor), $quote['cicilan']);
+                $last = $quote['total_harga'] - $quote['dp'] - $quote['cicilan'] * ($tenor - 1);
+                $this->assertSame($quote['total_harga'], $quote['dp'] + $quote['cicilan'] * ($tenor - 1) + $last);
+            }
+        }
     }
 
     public function test_cash_booking_uses_cash_price_and_clears_installment_fields(): void
@@ -122,6 +132,39 @@ class BookingPricingTest extends TestCase
         KavlingPeta::whereKey(1)->update(['harga_bertahap_12' => null]);
         $this->post('/_test/book', $this->payload(), ['Accept' => 'application/json'])
             ->assertUnprocessable()->assertJsonValidationErrors('id_kavling');
+        $this->assertDatabaseCount('pengajuan_hold', 0);
+    }
+
+    public function test_dp30_uses_its_own_price_and_is_kept_during_verification(): void
+    {
+        KavlingPeta::whereKey(1)->update([
+            'dp_cash_bertahap_30' => 118500000,
+            'harga_bertahap_12_dp30' => 430550000,
+            'cicilan_12_dp30' => 26004167,
+        ]);
+        $this->getJson('/_test/price/1?jenis_pembelian=Cash%20Bertahap&termin_x_cash_b=12&dp_persen=30')
+            ->assertOk()->assertJsonPath('quote.dp_persen', 30)
+            ->assertJsonPath('quote.dp', 118500000)->assertJsonPath('quote.cicilan', 26004167);
+        $payload = array_merge($this->payload(), ['dp_persen' => 30]);
+        $this->post('/_test/book', $payload, ['Accept' => 'application/json'])->assertOk();
+        $booking = PengajuanHold::firstOrFail();
+        $this->assertSame(30, $booking->harga_snapshot['dp_persen']);
+        unset($payload['foto_ktp']);
+        $this->postJson('/_test/verify/' . $booking->id, array_merge($payload, ['tgl_booking' => '2026-10-22', 'stt_reg' => 1]))->assertOk();
+        $this->assertEquals(118500000, $booking->fresh()->dp_cash_b);
+        $this->assertSame(30, $booking->fresh()->harga_snapshot['dp_persen']);
+        $payload['dp_persen'] = 50;
+        $this->postJson('/_test/verify/' . $booking->id, array_merge($payload, ['tgl_booking' => '2026-10-22', 'stt_reg' => 1]))->assertOk();
+        $this->assertSame(50, $booking->fresh()->harga_snapshot['dp_persen']);
+        $this->assertEquals(197500000, $booking->fresh()->dp_cash_b);
+    }
+
+    public function test_dp30_with_missing_prices_and_invalid_dp_percentage_are_rejected(): void
+    {
+        $this->getJson('/_test/price/1?jenis_pembelian=Cash%20Bertahap&termin_x_cash_b=3&dp_persen=30')
+            ->assertUnprocessable()->assertJsonValidationErrors('id_kavling');
+        $this->post('/_test/book', array_merge($this->payload(), ['dp_persen' => 40]), ['Accept' => 'application/json'])
+            ->assertUnprocessable()->assertJsonValidationErrors('dp_persen');
         $this->assertDatabaseCount('pengajuan_hold', 0);
     }
 }

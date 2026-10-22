@@ -525,7 +525,7 @@ class PengajuanHoldController extends Controller
     {
         $data = KavlingPeta::findOrFail($id);
 
-        $quote = \App\Services\KavlingPricing::quote($data, $request->input('jenis_pembelian'), $request->input('termin_x_cash_b'));
+        $quote = \App\Services\KavlingPricing::quote($data, $request->input('jenis_pembelian'), $request->input('termin_x_cash_b'), $request->input('dp_persen', 50));
         $rincian = $quote['rincian_biaya'];
         $total   = collect($rincian)->sum('nilai');
 
@@ -605,6 +605,7 @@ class PengajuanHoldController extends Controller
             'jenis_perumahan'  => 'required',
             'jenis_pembelian'  => 'required|in:Pembelian Cash,Cash Bertahap,KPR',
             'termin_x_cash_b' => 'required_if:jenis_pembelian,Cash Bertahap|nullable|integer|min:1',
+            'dp_persen' => 'sometimes|integer|in:30,50',
             'foto_ktp'         => 'required|mimes:jpg,jpeg,png|max:2048',
             'foto_npwp'        => 'nullable|mimes:jpg,jpeg,png|max:2048',
             'foto_kk'          => 'nullable|mimes:jpg,jpeg,png|max:2048',
@@ -675,7 +676,7 @@ class PengajuanHoldController extends Controller
                 ]);
             }
 
-            $quote = \App\Services\KavlingPricing::quote($kavling, $request->jenis_pembelian, $request->termin_x_cash_b);
+            $quote = \App\Services\KavlingPricing::quote($kavling, $request->jenis_pembelian, $request->termin_x_cash_b, $request->input('dp_persen', 50));
 
             $folder = public_path('assets/booking');
 
@@ -991,6 +992,7 @@ class PengajuanHoldController extends Controller
             'id_bank'         => 'nullable|required_if:stt_reg,2|exists:bank,id',
             'an_surat_cash'   => 'nullable|string|max:255',
             'termin_x_cash_b' => 'integer|min:0',
+            'dp_persen' => 'sometimes|integer|in:30,50',
             'tgl_booking' => 'required|date',
             'nama_lengkap' => 'required|string|max:255',
             'nik' => 'required|string|max:255',
@@ -1056,16 +1058,18 @@ class PengajuanHoldController extends Controller
                 ! KavlingPeta::whereKey($kavling->id)->available($data->id)->exists()) {
                 throw \Illuminate\Validation\ValidationException::withMessages(['id_kavling' => 'Kavling tidak tersedia atau tidak sesuai lokasi.']);
             }
-            $bookingValues = collect($validated)->except(array_merge($attachmentFields, ['stt_reg']))->all();
+            $bookingValues = collect($validated)->except(array_merge($attachmentFields, ['stt_reg', 'dp_persen']))->all();
             $method = $validated['jenis_pembelian'] ?? $data->jenis_pembelian;
             $tenor = $validated['termin_x_cash_b'] ?? $data->termin_x_cash_b;
             $snapshot = $data->harga_snapshot;
+            $dpPercent = $validated['dp_persen'] ?? ($snapshot['dp_persen'] ?? 50);
             if ($snapshot && (int) $snapshot['id_kavling'] === (int) $kavling->id
                 && $snapshot['jenis_pembelian'] === $method
+                && ($method !== 'Cash Bertahap' || (int) ($snapshot['dp_persen'] ?? 50) === (int) $dpPercent)
                 && (int) $snapshot['tenor'] === ($method === 'Cash Bertahap' ? (int) $tenor : 0)) {
                 $quote = $snapshot;
             } else {
-                $quote = \App\Services\KavlingPricing::quote($kavling, $method, $tenor);
+                $quote = \App\Services\KavlingPricing::quote($kavling, $method, $tenor, $dpPercent);
             }
             $bookingValues['total_harga'] = $quote['total_harga'];
             $bookingValues['harga_snapshot'] = $quote;

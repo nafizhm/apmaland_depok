@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 
 class ImportParamitaPrices extends Command
 {
-    protected $signature = 'prices:import-paramita {--apply : Simpan harga setelah semua unit cocok}';
+    protected $signature = 'prices:import-paramita {--apply : Simpan harga setelah semua unit cocok} {--dp30-only : Hanya isi skema DP 30% berdasarkan harga cash dan bertahap tersimpan}';
     protected $description = 'Import harga rev.pdf Paramita 22 Oktober 2026 (default: pratinjau)';
 
     public function handle(): int
@@ -37,7 +37,19 @@ class ImportParamitaPrices extends Command
                     $this->error("Luas {$code} berbeda dengan PDF. Import dibatalkan.");
                     return self::FAILURE;
                 }
-                $updates[$unit->id] = array_intersect_key($row, KavlingPricing::FIELDS);
+                $prices = array_intersect_key($row, KavlingPricing::FIELDS);
+                if ($this->option('dp30-only')) {
+                    foreach (['harga_cash', 'harga_bertahap_3', 'harga_bertahap_6', 'harga_bertahap_12'] as $field) {
+                        if ((int) $unit->$field <= 0) {
+                            $this->error("Harga dasar {$code} belum lengkap. Import dibatalkan.");
+                            return self::FAILURE;
+                        }
+                        $prices[$field] = (int) $unit->$field;
+                    }
+                    $updates[$unit->id] = KavlingPricing::dp30Prices($prices);
+                } else {
+                    $updates[$unit->id] = array_merge($prices, KavlingPricing::dp30Prices($prices));
+                }
             }
         }
         $this->info(count($updates) . ' unit cocok di ' . $locations->first()->nama_kavling . '.');

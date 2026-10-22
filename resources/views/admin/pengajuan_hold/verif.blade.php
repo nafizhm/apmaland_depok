@@ -474,6 +474,14 @@
                                     <div id="cash-price-summary" class="mb-3"></div>
                                     <div id="trx_cash_bertahap" style="display: none;">
                                         <div class="form-group row">
+                                            <label for="dp_persen" class="col-sm-2 col-form-label">Pilihan DP</label>
+                                            <div class="col-sm-3"><select name="dp_persen" id="dp_persen" class="form-control">
+                                                @foreach ([50, 30] as $percent)
+                                                    <option value="{{ $percent }}" @selected(($data->harga_snapshot['dp_persen'] ?? 50) == $percent)>DP {{ $percent }}%</option>
+                                                @endforeach
+                                            </select></div>
+                                        </div>
+                                        <div class="form-group row">
                                             <label class="col-sm-2 col-form-label">Termin (x)</label>
                                             <div class="col-sm-2">
                                                 <div class="input-group">
@@ -540,15 +548,18 @@
                 const item = kavlings.find(item => String(item.id) === $('#id_kavling').val());
                 const method = $('#jenis_pembelian').val();
                 const tenor = Number($('#termin_x_cash_b').val());
+                const dpPercent = Number($('#dp_persen').val() || 50);
+                const suffix = dpPercent === 30 ? '_dp30' : '';
                 let rincian = item ? (item.rincian_biaya || []) : [];
                 let dp = 0, cicilan = 0;
                 if (item && item.harga_cash != null && ['Pembelian Cash', 'Cash Bertahap'].includes(method)) {
-                    const total = method === 'Cash Bertahap' ? item['harga_bertahap_' + tenor] : item.harga_cash;
+                    const total = method === 'Cash Bertahap' ? item['harga_bertahap_' + tenor + suffix] : item.harga_cash;
                     rincian = [{nama: 'Harga Rumah', nilai: Number(total || 0)}];
-                    if (method === 'Cash Bertahap') { dp = Number(item.dp_cash_bertahap || 0); cicilan = Number(item['cicilan_' + tenor] || 0); }
+                    if (method === 'Cash Bertahap') { dp = Number(item[dpPercent === 30 ? 'dp_cash_bertahap_30' : 'dp_cash_bertahap'] || 0); cicilan = Number(item['cicilan_' + tenor + suffix] || 0); }
                 }
                 if (priceSnapshot && item && Number(priceSnapshot.id_kavling) === Number(item.id)
                     && priceSnapshot.jenis_pembelian === method
+                    && (method !== 'Cash Bertahap' || Number(priceSnapshot.dp_persen || 50) === dpPercent)
                     && Number(priceSnapshot.tenor) === (method === 'Cash Bertahap' ? tenor : 0)) {
                     rincian = priceSnapshot.rincian_biaya; dp = priceSnapshot.dp; cicilan = priceSnapshot.cicilan;
                 }
@@ -566,7 +577,7 @@
                 });
                 $('#total_harga').val(total.toLocaleString('id-ID'));
             }
-            $('#id_kavling, #jenis_pembelian, #termin_x_cash_b').on('change input', refreshPrice);
+            $('#id_kavling, #jenis_pembelian, #termin_x_cash_b, #dp_persen').on('change input', refreshPrice);
             $('#booking_fee').on('input', function() {
                 const value = this.value.replace(/\D/g, '');
                 this.value = value ? Number(value).toLocaleString('id-ID') : '';

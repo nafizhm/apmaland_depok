@@ -12,6 +12,13 @@ class KavlingPeta extends Model
     protected $table = 'kavling_peta';
 
     protected $fillable = [
+        'dp_cash_bertahap_30',
+        'harga_bertahap_3_dp30',
+        'cicilan_3_dp30',
+        'harga_bertahap_6_dp30',
+        'cicilan_6_dp30',
+        'harga_bertahap_12_dp30',
+        'cicilan_12_dp30',
         'harga_cash',
         'dp_cash_bertahap',
         'harga_bertahap_3',
@@ -56,6 +63,13 @@ class KavlingPeta extends Model
     ];
 
     protected $casts = [
+        'dp_cash_bertahap_30' => 'integer',
+        'harga_bertahap_3_dp30' => 'integer',
+        'cicilan_3_dp30' => 'integer',
+        'harga_bertahap_6_dp30' => 'integer',
+        'cicilan_6_dp30' => 'integer',
+        'harga_bertahap_12_dp30' => 'integer',
+        'cicilan_12_dp30' => 'integer',
         'harga_cash' => 'integer',
         'dp_cash_bertahap' => 'integer',
         'harga_bertahap_3' => 'integer',
