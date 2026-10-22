@@ -213,6 +213,12 @@
         .price-section-title { font-size: .78rem; font-weight: 700; color: #315f31; margin-bottom: 8px; }
         .price-section .popup-row:last-child { margin-bottom: 0; }
         .price-section-cash { background: #eff8f0; border-color: #cfe7d3; }
+        .price-tabs { display: flex; gap: 4px; margin-top: 12px; padding: 4px; background: #eef2ed; border-radius: 9px; }
+        .price-tab { flex: 1; border: 0; border-radius: 6px; padding: 8px 4px; background: transparent; color: #536451; font-size: .74rem; font-weight: 600; cursor: pointer; }
+        .price-tab[aria-selected="true"] { background: #fff; color: #1a5c30; box-shadow: 0 1px 4px #00000012; }
+        .price-tab:focus-visible { outline: 2px solid #315f31; outline-offset: 1px; }
+        .dp-options { display: flex; gap: 16px; margin-bottom: 10px; font-size: .78rem; color: #315f31; }
+        .dp-options label { display: flex; align-items: center; gap: 5px; margin: 0; cursor: pointer; }
         .price-plans { width: 100%; font-size: .75rem; border-collapse: collapse; }
         .price-plans th { color: #6b7280; font-size: .68rem; font-weight: 500; }
         .price-plans th, .price-plans td { padding: 6px 0; text-align: right; white-space: nowrap; }
@@ -429,7 +435,12 @@
                 <span class="popup-value"><span id="p_luas_bangunan">-</span> m²</span>
             </div>
 
-            <div class="kpr-prices">
+            <div class="price-tabs" role="tablist" aria-label="Metode pembayaran">
+                <button type="button" class="price-tab" id="tab-kpr" role="tab" aria-selected="true" aria-controls="panel-kpr" data-price-panel="panel-kpr">KPR</button>
+                <button type="button" class="price-tab" id="tab-cash" role="tab" aria-selected="false" aria-controls="panel-cash" tabindex="-1" data-price-panel="panel-cash">Cash Keras</button>
+                <button type="button" class="price-tab" id="tab-bertahap" role="tab" aria-selected="false" aria-controls="panel-bertahap" tabindex="-1" data-price-panel="panel-bertahap">Cash Bertahap</button>
+            </div>
+            <div class="kpr-prices price-panel" id="panel-kpr" role="tabpanel" aria-labelledby="tab-kpr">
             <div class="popup-price">
                 <span class="popup-label font-weight-bold" id="p_total_label">Total Harga</span>
                 <span class="value"><span id="p_currency">Rp</span> <span id="p_hrg_jual">0</span></span>
@@ -439,28 +450,35 @@
                 <span class="popup-value" id="p_plafon_kpr">-</span>
             </div>
             </div>
-            <div id="p_payment_prices" style="display:none;">
-                <div class="price-section price-section-cash">
+                <div class="price-section price-section-cash price-panel" id="panel-cash" role="tabpanel" aria-labelledby="tab-cash" hidden>
                     <div class="price-section-title">CASH KERAS</div>
                     <div class="popup-row"><span class="popup-label">Harga pelunasan</span><span class="popup-value" id="p_harga_cash">-</span></div>
                 </div>
-                <div class="price-section">
+                <div class="price-section price-panel" id="panel-bertahap" role="tabpanel" aria-labelledby="tab-bertahap" hidden>
                     <div class="price-section-title">CASH BERTAHAP</div>
-                    <div class="popup-row"><span class="popup-label">DP 50%</span><span class="popup-value" id="p_dp_cash_bertahap">-</span></div>
-                    <table class="price-plans" aria-label="Pilihan harga cash bertahap dengan DP 50%">
+                    <div class="dp-options" role="group" aria-label="Pilihan uang muka">
+                        <label><input type="radio" name="siteplan_dp" value="30" checked> DP 30%</label>
+                        <label><input type="radio" name="siteplan_dp" value="50"> DP 50%</label>
+                    </div>
+                    @foreach ([30, 50] as $dp)
+                    @php($suffix = $dp === 30 ? '_dp30' : '')
+                    <div class="dp-prices" data-dp="{{ $dp }}" @if ($dp !== 30) hidden @endif>
+                    <div class="popup-row"><span class="popup-label">Uang muka {{ $dp }}%</span><span class="popup-value" id="p_{{ $dp === 30 ? 'dp_cash_bertahap_30' : 'dp_cash_bertahap' }}">-</span></div>
+                    <table class="price-plans" aria-label="Pilihan harga cash bertahap dengan DP {{ $dp }}%">
                         <thead><tr><th scope="col">Tenor</th><th scope="col">Total harga</th><th scope="col">Cicilan / bulan</th></tr></thead>
                         <tbody>
                         @foreach ([3, 6, 12] as $tenor)
                             <tr>
                                 <td>{{ $tenor }} bulan</td>
-                                <td id="p_harga_bertahap_{{ $tenor }}">-</td>
-                                <td id="p_cicilan_{{ $tenor }}">-</td>
+                                <td id="p_harga_bertahap_{{ $tenor }}{{ $suffix }}">-</td>
+                                <td id="p_cicilan_{{ $tenor }}{{ $suffix }}">-</td>
                             </tr>
                         @endforeach
                         </tbody>
                     </table>
+                    </div>
+                    @endforeach
                 </div>
-            </div>
             </div>
         </div>
     </div>
@@ -470,6 +488,36 @@
     <script>
         let currentTargetElement = null;
         let popupUpdateInterval = null;
+
+        function selectPricePanel(panelId) {
+            $('.price-tab').each(function() {
+                const selected = this.dataset.pricePanel === panelId;
+                $(this).attr({'aria-selected': String(selected), tabindex: selected ? 0 : -1});
+            });
+            $('.price-panel').each(function() { this.hidden = this.id !== panelId; });
+            updatePopupPosition();
+        }
+
+        $(document).on('click', '.price-tab', function() {
+            selectPricePanel(this.dataset.pricePanel);
+        });
+        $(document).on('keydown', '.price-tab', function(e) {
+            const tabs = $('.price-tab').toArray();
+            let index = tabs.indexOf(this);
+            if (e.key === 'ArrowRight') index = (index + 1) % tabs.length;
+            else if (e.key === 'ArrowLeft') index = (index + tabs.length - 1) % tabs.length;
+            else if (e.key === 'Home') index = 0;
+            else if (e.key === 'End') index = tabs.length - 1;
+            else return;
+            e.preventDefault();
+            tabs[index].focus();
+            selectPricePanel(tabs[index].dataset.pricePanel);
+        });
+        $(document).on('change', 'input[name="siteplan_dp"]', function() {
+            const dp = this.value;
+            $('.dp-prices').each(function() { this.hidden = this.dataset.dp !== dp; });
+            updatePopupPosition();
+        });
 
         function toggleLegend() {
             $('#legendBox').toggleClass('hidden');
@@ -524,9 +572,9 @@
                     $('#p_tipe_bangunan').text(res.data.nama_cluster || res.data.tipe_bangunan || '-');
                     $('#p_luas_tanah').text(res.data.luas_tanah);
                     $('#p_luas_bangunan').text(res.data.luas_bangunan);
-                    const priceFields = @json(array_keys(\App\Services\KavlingPricing::FIELDS));
-                    const hasPaymentPrices = priceFields.some(field => Number(res.data[field]) > 0);
-                    $('#p_payment_prices').toggle(hasPaymentPrices);
+                    const priceFields = @json(array_keys(\App\Services\KavlingPricing::fields()));
+                    selectPricePanel('panel-kpr');
+                    $('input[name="siteplan_dp"][value="30"]').prop('checked', true).trigger('change');
                     $('#p_total_label').text('Harga KPR');
                     const plafon = Number(res.data.plafon_kpr);
                     $('#p_plafon_kpr').text(plafon > 0 ? 'Rp ' + plafon.toLocaleString('id-ID') : 'Belum tersedia');
