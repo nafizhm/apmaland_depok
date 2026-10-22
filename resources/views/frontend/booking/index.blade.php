@@ -405,6 +405,16 @@
             font-weight: 500;
         }
 
+        .payment-summary { border: 1px solid #dce8dd; border-radius: 12px; background: #f7faf7; padding: 16px; }
+        .payment-summary-title { color: #315f31; font-size: .9rem; font-weight: 700; margin-bottom: 12px; }
+        .payment-summary-list { margin: 0; }
+        .payment-summary-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; padding: 8px 0; border-bottom: 1px solid #e4ece4; }
+        .payment-summary-row:last-child { border-bottom: 0; }
+        .payment-summary-row dt { color: #5f6d63; font-size: .85rem; font-weight: 500; margin: 0; }
+        .payment-summary-row dd { color: #183d28; font-size: .9rem; font-weight: 700; margin: 0 0 0 auto; font-variant-numeric: tabular-nums; }
+        .payment-summary-row.is-primary dd { color: #246d35; font-size: 1.05rem; }
+        .payment-summary-note { margin: 10px 0 0; color: #6b756d; font-size: .78rem; line-height: 1.5; }
+
         /* Responsive */
         @media (max-width: 768px) {
             .booking-body {
@@ -689,6 +699,17 @@
                                     </div>
                                 </div>
 
+                                <div class="form-group row" id="row-tenor" style="display:none;">
+                                    <label class="control-label col-sm-3" for="termin_x_cash_b">Pilihan Cicilan <span style="color:red;">*</span></label>
+                                    <div class="col-sm-9">
+                                        <select class="form-control" name="termin_x_cash_b" id="termin_x_cash_b" disabled>
+                                            <option value="">Pilih cicilan</option>
+                                            <option value="3">3x / 3 bulan</option>
+                                            <option value="6">6x / 6 bulan</option>
+                                            <option value="12">12x / 12 bulan</option>
+                                        </select>
+                                    </div>
+                                </div>
                                 <div class="form-group row">
                                     <label class="control-label col-sm-3">Booking Fee <span style="color: red;">*</span></label>
                                     <div class="col-sm-4">
@@ -701,6 +722,7 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="row"><div id="ringkasan-pembayaran" class="col-sm-9 offset-sm-3 mb-3" aria-live="polite"></div></div>
                             </div>
 
                             <hr>
@@ -971,7 +993,7 @@
                 rincian.forEach(function(item) {
                     if ((item.nilai || 0) <= 0) return;
                     html += '<div class="form-group row">';
-                    html += '<label class="control-label col-sm-3">' + item.nama + '</label>';
+                    html += '<label class="control-label col-sm-3">' + $('<div>').text(item.nama).html() + '</label>';
                     html += '<div class="col-sm-4">';
                     html += '<div class="input-group">';
                     html += '<div class="input-group-prepend"><span class="input-group-text">Rp.</span></div>';
@@ -1009,18 +1031,70 @@
                 }
             });
 
-            $('#id_kavling').on('change', function() {
-                let idKavling = $(this).val();
-
-                if (idKavling) {
-                    const urlHarga = routeGetHarga.replace(':id', idKavling);
-                    $.get(urlHarga, function(data) {
-                        renderRincianHarga(data.rincian_biaya, data.total_harga);
-                    });
-                } else {
-                    renderRincianHarga([], 0);
+            let priceRequest = null;
+            let priceVersion = 0;
+            function refreshHarga() {
+                const version = ++priceVersion;
+                if (priceRequest) priceRequest.abort();
+                const id = $('#id_kavling').val();
+                const method = $('#jenis_pembelian').val();
+                const bertahap = method === 'Cash Bertahap';
+                $('#row-tenor').toggle(bertahap);
+                $('#termin_x_cash_b').prop('disabled', !bertahap).prop('required', bertahap);
+                $('#ringkasan-pembayaran').empty();
+                renderRincianHarga([], 0);
+                if (!id) return;
+                if (bertahap && !$('#termin_x_cash_b').val()) {
+                    $('#rincian-harga-container').text('Pilih jumlah cicilan untuk menampilkan harga cash bertahap.');
+                    return;
                 }
-            });
+                $('#rincian-harga-container').text('Memuat harga...');
+                priceRequest = $.get(routeGetHarga.replace(':id', id), {
+                    jenis_pembelian: method,
+                    termin_x_cash_b: bertahap ? $('#termin_x_cash_b').val() : ''
+                }).done(function(data) {
+                    if (version !== priceVersion) return;
+                    renderRincianHarga(data.rincian_biaya, data.total_harga);
+                    if (data.harga_cash != null && method) {
+                        const quote = data.quote;
+                        const fee = parseInt(($('#booking_fee').val() || '').replace(/\D/g, '')) || 0;
+                        const money = value => 'Rp ' + value.toLocaleString('id-ID');
+                        const summary = $('<section class="payment-summary">');
+                        const list = $('<dl class="payment-summary-list">');
+                        function addSummaryRow(label, value, primary = false) {
+                            const row = $('<div class="payment-summary-row">').toggleClass('is-primary', primary);
+                            $('<dt>').text(label).appendTo(row);
+                            $('<dd>').text(value).appendTo(row);
+                            row.appendTo(list);
+                        }
+                        if (bertahap) {
+                            const residual = quote.total_harga - quote.dp - quote.cicilan * (quote.tenor - 1);
+                            $('<div class="payment-summary-title">').text('Ringkasan cash bertahap · ' + quote.tenor + ' bulan').appendTo(summary);
+                            addSummaryRow('DP 50%', money(quote.dp));
+                            addSummaryRow('Booking fee (pengurang DP)', money(fee));
+                            addSummaryRow('Sisa DP yang harus dibayar', money(Math.max(0, quote.dp - fee)), true);
+                            addSummaryRow('Cicilan per bulan · ' + quote.tenor + 'x', money(quote.cicilan), true);
+                            list.appendTo(summary);
+                            if (residual !== quote.cicilan) {
+                                $('<p class="payment-summary-note">').text('Cicilan terakhir ' + money(residual) + ', disesuaikan dengan pembulatan agar total pembayaran tepat.').appendTo(summary);
+                            }
+                        } else if (method === 'Pembelian Cash') {
+                            $('<div class="payment-summary-title">').text('Ringkasan cash keras').appendTo(summary);
+                            addSummaryRow('Total harga', money(quote.total_harga));
+                            addSummaryRow('Booking fee', money(fee));
+                            addSummaryRow('Sisa pelunasan', money(Math.max(0, quote.total_harga - fee)), true);
+                            list.appendTo(summary);
+                        }
+                        if (list.children().length) $('#ringkasan-pembayaran').append(summary);
+                    }
+                }).fail(function(xhr, status) {
+                    if (status === 'abort' || version !== priceVersion) return;
+                    const errors = xhr.responseJSON && xhr.responseJSON.errors;
+                    $('#rincian-harga-container').text(errors ? Object.values(errors).flat()[0] : 'Gagal memuat harga. Silakan pilih kavling kembali.');
+                });
+            }
+            $('#id_kavling, #jenis_pembelian, #termin_x_cash_b').on('change', refreshHarga);
+            $('#booking_fee').on('change', refreshHarga);
 
         });
 

@@ -209,6 +209,19 @@ class PengajuanHoldController extends Controller
             ->stream('Tanda-Terima-' . \Illuminate\Support\Str::slug($booking->no_registrasi ?: (string) $booking->id) . '.pdf');
     }
 
+    public function attachment($id, string $field, string $action)
+    {
+        $data = PengajuanHold::findOrFail($id);
+        $path = $data->attachmentPath($field);
+        abort_unless($path && in_array($action, ['download', 'print'], true), 404);
+        if ($action === 'download') {
+            return response()->download(public_path($path));
+        }
+        $url = asset($path);
+        $isPdf = strtolower(pathinfo($path, PATHINFO_EXTENSION)) === 'pdf';
+        return view('admin.pengajuan_hold.print_attachment', compact('data', 'field', 'url', 'isPdf'));
+    }
+
     public function arsipDetail($id, Request $request)
     {
         Carbon::setLocale('id');
@@ -508,11 +521,12 @@ class PengajuanHoldController extends Controller
         return response()->json($kavling);
     }
 
-    public function getHargaKavling($id)
+    public function getHargaKavling(Request $request, $id)
     {
         $data = KavlingPeta::findOrFail($id);
 
-        $rincian = $data->rincian_biaya ?? [];
+        $quote = \App\Services\KavlingPricing::quote($data, $request->input('jenis_pembelian'), $request->input('termin_x_cash_b'));
+        $rincian = $quote['rincian_biaya'];
         $total   = collect($rincian)->sum('nilai');
 
         $formatted = [];
@@ -525,6 +539,8 @@ class PengajuanHoldController extends Controller
         }
 
         return response()->json([
+            'quote' => $quote,
+            'harga_cash' => $data->harga_cash,
             'rincian_biaya' => $rincian,
             'total_harga'   => $total,
             'formatted'     => $formatted,
@@ -586,7 +602,8 @@ class PengajuanHoldController extends Controller
             'status_pernikahan'=> 'required',
             'booking_fee'      => 'required|gt:0',
             'jenis_perumahan'  => 'required',
-            'jenis_pembelian'  => 'required',
+            'jenis_pembelian'  => 'required|in:Pembelian Cash,Cash Bertahap,KPR',
+            'termin_x_cash_b' => 'required_if:jenis_pembelian,Cash Bertahap|nullable|integer|min:1',
             'foto_ktp'         => 'required|mimes:jpg,jpeg,png|max:2048',
             'foto_npwp'        => 'nullable|mimes:jpg,jpeg,png|max:2048',
             'foto_kk'          => 'nullable|mimes:jpg,jpeg,png|max:2048',
@@ -648,15 +665,6 @@ class PengajuanHoldController extends Controller
             ], 422);
         }
 
-        if (collect($kavling->rincian_biaya ?? [])->sum('nilai') <= 0) {
-            return response()->json([
-                'message' => 'Harga kavling belum ditentukan.',
-                'errors' => [
-                    'id_kavling' => ['Harga kavling belum ditentukan.']
-                ]
-            ], 422);
-        }
-
         DB::beginTransaction();
         try {
             $kavling = KavlingPeta::lockForUpdate()->findOrFail($request->id_kavling);
@@ -665,6 +673,8 @@ class PengajuanHoldController extends Controller
                     'id_kavling' => 'Kavling sudah digunakan booking atau customer lain.',
                 ]);
             }
+
+            $quote = \App\Services\KavlingPricing::quote($kavling, $request->jenis_pembelian, $request->termin_x_cash_b);
 
             $folder = public_path('assets/booking');
 
@@ -711,7 +721,10 @@ class PengajuanHoldController extends Controller
                 'no_bpjs_kes'       => $request->no_bpjs_kes ?? '',
                 'id_lokasi'         => $request->id_lokasi,
                 'id_kavling'        => $request->id_kavling,
-                'total_harga'       => $request->total_harga,
+                'total_harga'       => $quote['total_harga'],
+                'harga_snapshot'    => $quote,
+                'termin_x_cash_b'   => $quote['tenor'] ?? 0,
+                'dp_cash_b'         => $quote['dp'],
                 'booking_fee'       => $request->booking_fee ?? 0,
                 'id_marketing'      => $request->id_marketing ?? 0,
                 'jenis_perumahan'   => $request->jenis_perumahan ?? '',
@@ -903,7 +916,7 @@ class PengajuanHoldController extends Controller
             'id_bank'           => $request->id_bank,
             'id_status_progres' => 2,
             'an_surat_cash'     => $request->an_surat_cash,
-            'termin_x_cash_b'   => $request->termin_x_cash_b ?? 0,
+            'termin_x_cash_b'   => $data->termin_x_cash_b ?? 0,
         ];
 
         $customer = Customer::create($cust);
@@ -1043,7 +1056,20 @@ class PengajuanHoldController extends Controller
                 throw \Illuminate\Validation\ValidationException::withMessages(['id_kavling' => 'Kavling tidak tersedia atau tidak sesuai lokasi.']);
             }
             $bookingValues = collect($validated)->except(array_merge($attachmentFields, ['stt_reg']))->all();
-            $bookingValues['total_harga'] = collect($kavling->rincian_biaya ?? [])->sum('nilai');
+            $method = $validated['jenis_pembelian'] ?? $data->jenis_pembelian;
+            $tenor = $validated['termin_x_cash_b'] ?? $data->termin_x_cash_b;
+            $snapshot = $data->harga_snapshot;
+            if ($snapshot && (int) $snapshot['id_kavling'] === (int) $kavling->id
+                && $snapshot['jenis_pembelian'] === $method
+                && (int) $snapshot['tenor'] === ($method === 'Cash Bertahap' ? (int) $tenor : 0)) {
+                $quote = $snapshot;
+            } else {
+                $quote = \App\Services\KavlingPricing::quote($kavling, $method, $tenor);
+            }
+            $bookingValues['total_harga'] = $quote['total_harga'];
+            $bookingValues['harga_snapshot'] = $quote;
+            $bookingValues['dp_cash_b'] = $quote['dp'];
+            $bookingValues['termin_x_cash_b'] = $quote['tenor'] ?? 0;
             foreach ($attachmentFields as $field) {
                 if ($request->hasFile($field)) {
                     File::ensureDirectoryExists(public_path('assets/booking'));
@@ -1074,7 +1100,7 @@ class PengajuanHoldController extends Controller
                     $db = [
                         'stt_reg'         => $request->stt_reg,
                         'jenis_pembelian' => $request->jenis_pembelian,
-                        'termin_x_cash_b' => $request->termin_x_cash_b,
+                        'termin_x_cash_b' => $quote['tenor'],
                     ];
                 } elseif ($request->jenis_pembelian === 'KPR') {
                     $db = [

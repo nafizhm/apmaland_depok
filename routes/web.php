@@ -173,6 +173,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/pengajuan-hold/{id}/verifikasi', [PengajuanHoldController::class, 'verifikasi'])->name('pengajuan-hold.verifikasi');
         Route::post('/pengajuan-hold/{id}/verifikasi', [PengajuanHoldController::class, 'simpanVerifikasi'])->name('pengajuan-hold.verifikasi.simpan');
         Route::get('/pengajuan-hold/{id}/arsip-detail', [PengajuanHoldController::class, 'arsipDetail'])->name('pengajuan-hold.arsip.detail');
+        Route::get('/pengajuan-hold/{id}/lampiran/{field}/{action}', [PengajuanHoldController::class, 'attachment'])->where('action', 'download|print')->name('pengajuan-hold.attachment');
         Route::get('/pengajuan-hold/{id}/cetak', [PengajuanHoldController::class, 'cetakTandaTerima'])->name('pengajuan-hold.cetak');
         Route::resource('pengajuan-hold', PengajuanHoldController::class);
     });

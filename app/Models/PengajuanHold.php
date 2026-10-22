@@ -45,6 +45,7 @@ class PengajuanHold extends Model
         'id_lokasi',
         'id_kavling',
         'total_harga',
+        'harga_snapshot',
         'jenis_perumahan',
         'jenis_pembelian',
         'pembayaran_cash',
@@ -58,6 +59,8 @@ class PengajuanHold extends Model
         'an_surat_kpr',
         'stt_reg',
     ];
+
+    protected $casts = ['harga_snapshot' => 'array'];
 
     public $timestamps = false;
 
@@ -74,6 +77,12 @@ class PengajuanHold extends Model
 
     public function attachmentUrl(string $field): ?string
     {
+        $path = $this->attachmentPath($field);
+        return $path ? asset($path) : null;
+    }
+
+    public function attachmentPath(string $field): ?string
+    {
         if (!in_array($field, ['foto_ktp', 'foto_npwp', 'foto_kk', 'foto_bpjs', 'foto_ktp_p', 'foto_pemohon', 'file_bukti', 'file_sppr'], true)) return null;
         $filename = $this->getAttribute($field);
         if (!$filename) return null;
@@ -84,14 +93,14 @@ class PengajuanHold extends Model
             if ($field === 'file_bukti') $directories[] = 'assets/keuangan/pemasukan';
         }
         foreach ($directories as $directory) {
-            if (is_file(public_path($directory . '/' . $filename))) return asset($directory . '/' . $filename);
+            if (is_file(public_path($directory . '/' . $filename))) return $directory . '/' . $filename;
         }
         return null;
     }
 
     public function getRincianBiayaAttribute()
     {
-        return $this->kavling->rincian_biaya ?? [];
+        return $this->harga_snapshot['rincian_biaya'] ?? $this->kavling->rincian_biaya ?? [];
     }
 
     public function marketing()

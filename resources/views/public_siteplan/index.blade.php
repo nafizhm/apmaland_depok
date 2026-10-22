@@ -172,7 +172,8 @@
             background: #fff;
             padding: 20px;
             border-radius: 12px;
-            width: 300px;
+            width: 380px;
+            max-width: calc(100vw - 30px);
             box-shadow: 0 20px 50px rgba(0,0,0,0.3);
             position: relative;
             pointer-events: all;
@@ -202,6 +203,26 @@
             color: #1a5c30;
             margin-bottom: 15px;
         }
+
+        .popup-details {
+            max-height: calc(100dvh - 110px);
+            overflow-y: auto;
+        }
+
+        .price-section { margin-top: 14px; padding: 12px; border: 1px solid #e3e9e5; border-radius: 10px; background: #f8faf9; }
+        .price-section-title { font-size: .78rem; font-weight: 700; color: #315f31; margin-bottom: 8px; }
+        .price-section .popup-row:last-child { margin-bottom: 0; }
+        .price-section-cash { background: #eff8f0; border-color: #cfe7d3; }
+        .price-plan { padding: 9px 0; border-top: 1px solid #e3e9e5; }
+        .price-plan:first-of-type { border-top: 0; }
+        .price-plan-title { display: inline-block; font-size: .73rem; font-weight: 700; color: #315f31; background: #e5efdf; border-radius: 5px; padding: 3px 7px; margin-bottom: 7px; }
+        .price-section .popup-value { white-space: nowrap; }
+        .popup-arrow { position: absolute; width: 16px; height: 16px; background: white; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; bottom: -9px; transform: translateX(-50%) rotate(45deg); }
+        #popupConnector { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 9998; pointer-events: none; display: none; }
+        .detail-button.is-selected :is(path, polygon, rect, circle, ellipse) { fill: #bfdbfe !important; stroke: #2563eb !important; stroke-width: 3px !important; vector-effect: non-scaling-stroke; }
+        .detail-button.is-selected text { fill: #1e3a8a !important; font-weight: 800; }
+        #p_payment_prices .popup-row { gap: 12px; }
+        #p_payment_prices .popup-value { white-space: nowrap; }
 
         .popup-row {
             display: flex;
@@ -372,6 +393,7 @@
     </div>
 
     {{-- Detail Popup --}}
+    <svg id="popupConnector" aria-hidden="true"><defs><marker id="unit-pointer" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#2563eb" /></marker></defs><line stroke="#2563eb" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#unit-pointer)" /></svg>
     <div id="popupOverlay">
         <div id="popupBox">
             <button id="popupClose" onclick="closePopup()">&times;</button>
@@ -379,6 +401,7 @@
 
             <div class="popup-title">Detail Kavling</div>
 
+            <div class="popup-details">
             <div class="popup-row">
                 <span class="popup-label">Perumahan</span>
                 <span class="popup-value" id="p_nama_kavling">-</span>
@@ -401,8 +424,26 @@
             </div>
 
             <div class="popup-price">
-                <span class="popup-label font-weight-bold">Total Harga</span>
+                <span class="popup-label font-weight-bold" id="p_total_label">Total Harga</span>
                 <span class="value"><span id="p_currency">Rp</span> <span id="p_hrg_jual">0</span></span>
+            </div>
+            <div id="p_payment_prices" style="display:none;">
+                <div class="price-section price-section-cash">
+                    <div class="price-section-title">CASH KERAS</div>
+                    <div class="popup-row"><span class="popup-label">Harga pelunasan</span><span class="popup-value" id="p_harga_cash">-</span></div>
+                </div>
+                <div class="price-section">
+                    <div class="price-section-title">CASH BERTAHAP</div>
+                    <div class="popup-row"><span class="popup-label">DP 50%</span><span class="popup-value" id="p_dp_cash_bertahap">-</span></div>
+                    @foreach ([3, 6, 12] as $tenor)
+                        <div class="price-plan">
+                            <div class="price-plan-title">{{ $tenor }}x / {{ $tenor }} bulan</div>
+                            <div class="popup-row"><span class="popup-label">Total harga</span><span class="popup-value" id="p_harga_bertahap_{{ $tenor }}">-</span></div>
+                            <div class="popup-row"><span class="popup-label">Cicilan / bulan</span><span class="popup-value" id="p_cicilan_{{ $tenor }}">-</span></div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
             </div>
         </div>
     </div>
@@ -420,38 +461,31 @@
         function updatePopupPosition() {
             if (!currentTargetElement || !$('#popupOverlay').is(':visible')) return;
 
-            const targetRect = currentTargetElement.getBoundingClientRect();
+            const shape = currentTargetElement.querySelector('polygon, path, rect') || currentTargetElement;
+            const targetRect = shape.getBoundingClientRect();
             const popupBox = document.getElementById('popupBox');
-            const popupWidth = popupBox.offsetWidth;
-            const popupHeight = popupBox.offsetHeight;
-
-            const targetCenterX = targetRect.left + (targetRect.width / 2);
-            const targetCenterY = targetRect.top + (targetRect.height / 2);
-
-            let left = targetCenterX - (popupWidth / 2);
-            let top = targetCenterY - popupHeight - 25;
-
-            const margin = 15;
-            const winW = $(window).width();
-            const winH = $(window).height();
-
-            if (left < margin) left = margin;
-            else if (left + popupWidth > winW - margin) left = winW - popupWidth - margin;
-
-            if (top < margin) {
-                top = targetCenterY + 25;
-                $('.popup-arrow').css({
-                    'bottom': 'auto', 'top': '-10px',
-                    'border-top': 'none', 'border-bottom': '10px solid #fff'
-                });
-            } else {
-                $('.popup-arrow').css({
-                    'bottom': '-10px', 'top': 'auto',
-                    'border-top': '10px solid #fff', 'border-bottom': 'none'
-                });
+            const margin = 15, gap = 24;
+            const winW = window.innerWidth, winH = window.innerHeight;
+            const targetX = targetRect.left + targetRect.width / 2;
+            const targetY = targetRect.top + targetRect.height / 2;
+            if (targetX < 0 || targetX > winW || targetY < 0 || targetY > winH) {
+                closePopup();
+                return;
             }
-
-            $('#popupOverlay').css({ left: left + 'px', top: top + 'px' });
+            const aboveSpace = targetRect.top - margin - gap;
+            const belowSpace = winH - targetRect.bottom - margin - gap;
+            const above = aboveSpace >= 260 || aboveSpace >= belowSpace;
+            const availableHeight = above ? aboveSpace : belowSpace;
+            $('.popup-details').css('max-height', Math.max(160, Math.min(winH - 110, availableHeight - 76)) + 'px');
+            const popupWidth = popupBox.offsetWidth, popupHeight = popupBox.offsetHeight;
+            const left = Math.max(margin, Math.min(targetX - popupWidth / 2, winW - popupWidth - margin));
+            let top = above ? targetRect.top - popupHeight - gap : targetRect.bottom + gap;
+            top = Math.max(margin, Math.min(top, winH - popupHeight - margin));
+            const arrowX = Math.max(24, Math.min(targetX - left, popupWidth - 24));
+            $('.popup-arrow').css({left: arrowX + 'px', top: above ? 'auto' : '-9px', bottom: above ? '-9px' : 'auto', transform: 'translateX(-50%) rotate(' + (above ? 45 : 225) + 'deg)'});
+            $('#popupOverlay').css({left: left + 'px', top: top + 'px'});
+            $('#popupConnector line').attr({x1: left + arrowX, y1: above ? top + popupHeight + 8 : top - 8, x2: targetX, y2: above ? targetRect.top - 3 : targetRect.bottom + 3});
+            $('#popupConnector').show();
         }
 
         $(document).on('click', '.detail-button', function(e) {
@@ -459,15 +493,30 @@
             e.stopPropagation();
 
             let url = $(this).data('url');
+            $('#popupOverlay').stop(true, true).hide();
+            $('#popupConnector').hide();
+            $('.detail-button.is-selected').removeClass('is-selected');
+            $(this).addClass('is-selected');
             currentTargetElement = this;
+            const targetElement = this;
 
             $.get(url, function(res) {
+                if (currentTargetElement !== targetElement) return;
                 if (res.success) {
                     $('#p_nama_kavling').text(res.data.lokasi.nama_kavling);
                     $('#p_kode_kavling').text(res.data.kode_kavling);
                     $('#p_tipe_bangunan').text(res.data.nama_cluster || res.data.tipe_bangunan || '-');
                     $('#p_luas_tanah').text(res.data.luas_tanah);
                     $('#p_luas_bangunan').text(res.data.luas_bangunan);
+                    const priceFields = @json(array_keys(\App\Services\KavlingPricing::FIELDS));
+                    const hasPaymentPrices = priceFields.some(field => Number(res.data[field]) > 0);
+                    $('#p_payment_prices').toggle(hasPaymentPrices);
+                    $('#p_total_label').text(hasPaymentPrices ? 'Harga KPR' : 'Total Harga');
+                    priceFields.forEach(function(field) {
+                        const value = Number(res.data[field]);
+                        $('#p_' + field).text(value > 0 ? 'Rp ' + value.toLocaleString('id-ID') : 'Belum tersedia');
+                    });
+                    $('.popup-details').scrollTop(0);
                     if (res.data.total_harga > 0) {
                         $('#p_hrg_jual').text(parseFloat(res.data.total_harga).toLocaleString('id-ID'));
                         $('#p_currency').show();
@@ -486,7 +535,9 @@
         });
 
         function closePopup() {
-            $('#popupOverlay').fadeOut(200);
+            $('#popupOverlay').stop(true, true).hide();
+            $('#popupConnector').hide();
+            $('.detail-button.is-selected').removeClass('is-selected');
             currentTargetElement = null;
             if (popupUpdateInterval) clearInterval(popupUpdateInterval);
         }

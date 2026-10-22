@@ -57,6 +57,7 @@ class BookingVerificationTest extends TestCase
         PengajuanHold::create(array_merge($this->payload(), ['id' => 1, 'nama_lengkap' => 'Nama Lama', 'foto_ktp' => 'existing.png']));
         File::put(public_path('assets/booking/existing.png'), 'original attachment');
         Route::post('/_test/booking/{id}', [PengajuanHoldController::class, 'simpanVerifikasi']);
+        Route::get('/_test/booking/{id}/attachment/{field}/{action}', [PengajuanHoldController::class, 'attachment']);
     }
 
     protected function tearDown(): void
@@ -83,6 +84,24 @@ class BookingVerificationTest extends TestCase
             'jenis_perumahan' => 'Subsidi',
             'booking_fee' => '1.500.000',
         ], $overrides);
+    }
+
+    public function test_uploaded_attachment_can_be_downloaded_and_printed(): void
+    {
+        $this->get('/_test/booking/1/attachment/foto_ktp/download')->assertOk()->assertDownload('existing.png');
+        $this->get('/_test/booking/1/attachment/foto_ktp/print')->assertOk()
+            ->assertSee('id="documentImage"', false)->assertSee('assets/booking/existing.png');
+        File::put(public_path('assets/booking/proof.pdf'), '%PDF-1.4');
+        PengajuanHold::findOrFail(1)->update(['file_bukti' => 'proof.pdf']);
+        $this->get('/_test/booking/1/attachment/file_bukti/print')->assertOk()
+            ->assertSee('id="documentPdf"', false)->assertSee('Buka PDF');
+    }
+
+    public function test_missing_or_unapproved_attachment_fields_return_not_found(): void
+    {
+        $this->get('/_test/booking/1/attachment/foto_npwp/download')->assertNotFound();
+        $this->get('/_test/booking/1/attachment/nama_lengkap/download')->assertNotFound();
+        $this->get('/_test/booking/1/attachment/foto_ktp/delete')->assertNotFound();
     }
 
     public function test_pending_can_save_edits_without_payment_details_and_keep_attachment(): void

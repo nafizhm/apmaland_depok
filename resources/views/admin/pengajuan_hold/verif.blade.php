@@ -251,6 +251,7 @@
                                                         <span class="text-muted">Tidak ada file</span>
                                                     @endif
                                                 </div>
+                                                @include('admin.pengajuan_hold.attachment_actions', ['field' => 'foto_ktp'])
                                                 <input type="file" name="foto_ktp" id="foto_ktp" class="form-control-file mt-2 attachment-input" accept=".jpg,.jpeg,.png,.webp">
                                                 <small class="text-muted">Pilih file untuk mengganti lampiran (maks. 10 MB).</small>
                                             </div>
@@ -270,6 +271,7 @@
                                                         <span class="text-muted">Tidak ada file</span>
                                                     @endif
                                                 </div>
+                                                @include('admin.pengajuan_hold.attachment_actions', ['field' => 'foto_npwp'])
                                                 <input type="file" name="foto_npwp" id="foto_npwp" class="form-control-file mt-2 attachment-input" accept=".jpg,.jpeg,.png,.webp">
                                                 <small class="text-muted">Pilih file untuk mengganti lampiran (maks. 10 MB).</small>
                                             </div>
@@ -291,6 +293,7 @@
                                                         <span class="text-muted">Tidak ada file</span>
                                                     @endif
                                                 </div>
+                                                @include('admin.pengajuan_hold.attachment_actions', ['field' => 'foto_kk'])
                                                 <input type="file" name="foto_kk" id="foto_kk" class="form-control-file mt-2 attachment-input" accept=".jpg,.jpeg,.png,.webp">
                                                 <small class="text-muted">Pilih file untuk mengganti lampiran (maks. 10 MB).</small>
                                             </div>
@@ -310,6 +313,7 @@
                                                         <span class="text-muted">Tidak ada file</span>
                                                     @endif
                                                 </div>
+                                                @include('admin.pengajuan_hold.attachment_actions', ['field' => 'foto_bpjs'])
                                                 <input type="file" name="foto_bpjs" id="foto_bpjs" class="form-control-file mt-2 attachment-input" accept=".jpg,.jpeg,.png,.webp">
                                                 <small class="text-muted">Pilih file untuk mengganti lampiran (maks. 10 MB).</small>
                                             </div>
@@ -331,6 +335,7 @@
                                                         <span class="text-muted">Tidak ada file</span>
                                                     @endif
                                                 </div>
+                                                @include('admin.pengajuan_hold.attachment_actions', ['field' => 'foto_ktp_p'])
                                                 <input type="file" name="foto_ktp_p" id="foto_ktp_p" class="form-control-file mt-2 attachment-input" accept=".jpg,.jpeg,.png,.webp">
                                                 <small class="text-muted">Pilih file untuk mengganti lampiran (maks. 10 MB).</small>
                                             </div>
@@ -350,6 +355,7 @@
                                                         <span class="text-muted">Tidak ada file</span>
                                                     @endif
                                                 </div>
+                                                @include('admin.pengajuan_hold.attachment_actions', ['field' => 'file_bukti'])
                                                 <input type="file" name="file_bukti" id="file_bukti" class="form-control-file mt-2 attachment-input" accept=".jpg,.jpeg,.png,.webp,.pdf">
                                                 <small class="text-muted">Pilih file untuk mengganti lampiran (maks. 10 MB).</small>
                                             </div>
@@ -371,10 +377,18 @@
                                                         <span class="text-muted">Tidak ada file</span>
                                                     @endif
                                                 </div>
+                                                @include('admin.pengajuan_hold.attachment_actions', ['field' => 'foto_pemohon'])
                                                 <input type="file" name="foto_pemohon" id="foto_pemohon" class="form-control-file mt-2 attachment-input" accept=".jpg,.jpeg,.png,.webp">
                                                 <small class="text-muted">Pilih file untuk mengganti lampiran (maks. 10 MB).</small>
                                             </div>
                                         </div>
+                                        @if ($data->attachmentUrl('file_sppr'))
+                                            <div class="row mb-3"><div class="col-sm-6">
+                                                <label class="form-label">Berkas SPPR</label>
+                                                <a href="{{ $data->attachmentUrl('file_sppr') }}" target="_blank" rel="noopener" class="d-block">Lihat berkas SPPR</a>
+                                                @include('admin.pengajuan_hold.attachment_actions', ['field' => 'file_sppr'])
+                                            </div></div>
+                                        @endif
                                     </div>
                                 </div>
 
@@ -457,6 +471,7 @@
 
                                     <!-- CASH BERTAHAP ==================================> -->
                                     <hr class="hr-transaksi" style="display: none;">
+                                    <div id="cash-price-summary" class="mb-3"></div>
                                     <div id="trx_cash_bertahap" style="display: none;">
                                         <div class="form-group row">
                                             <label class="col-sm-2 col-form-label">Termin (x)</label>
@@ -464,7 +479,7 @@
                                                 <div class="input-group">
                                                     <input name="termin_x_cash_b" id="termin_x_cash_b"
                                                         class="form-control format-number"
-                                                        value="{{ isset($data->termin_x_cash_b) && $data->termin_x_cash_b != 0 ? number_format($data->termin_x_cash_b, 0, ',', '.') : 60 }}">
+                                                        value="{{ isset($data->termin_x_cash_b) && $data->termin_x_cash_b != 0 ? number_format($data->termin_x_cash_b, 0, ',', '.') : ($data->kavling?->harga_cash !== null ? '' : 60) }}">
                                                     <div class="input-group-append">
                                                         <span class="input-group-text">Bulan</span>
                                                     </div>
@@ -508,6 +523,7 @@
     <script>
         $(function() {
             const kavlings = @json($kavlingList);
+            const priceSnapshot = @json($data->harga_snapshot);
             const originalKavling = @json((string) $data->id_kavling);
             function fillKavlings(selected) {
                 const select = $('#id_kavling').empty().append(new Option('', ''));
@@ -520,9 +536,23 @@
                 fillKavlings('');
                 $('#id_kavling').trigger('change');
             });
-            $('#id_kavling').on('change', function() {
-                const item = kavlings.find(item => String(item.id) === $(this).val());
-                const rincian = item ? (item.rincian_biaya || []) : [];
+            function refreshPrice() {
+                const item = kavlings.find(item => String(item.id) === $('#id_kavling').val());
+                const method = $('#jenis_pembelian').val();
+                const tenor = Number($('#termin_x_cash_b').val());
+                let rincian = item ? (item.rincian_biaya || []) : [];
+                let dp = 0, cicilan = 0;
+                if (item && item.harga_cash != null && ['Pembelian Cash', 'Cash Bertahap'].includes(method)) {
+                    const total = method === 'Cash Bertahap' ? item['harga_bertahap_' + tenor] : item.harga_cash;
+                    rincian = [{nama: 'Harga Rumah', nilai: Number(total || 0)}];
+                    if (method === 'Cash Bertahap') { dp = Number(item.dp_cash_bertahap || 0); cicilan = Number(item['cicilan_' + tenor] || 0); }
+                }
+                if (priceSnapshot && item && Number(priceSnapshot.id_kavling) === Number(item.id)
+                    && priceSnapshot.jenis_pembelian === method
+                    && Number(priceSnapshot.tenor) === (method === 'Cash Bertahap' ? tenor : 0)) {
+                    rincian = priceSnapshot.rincian_biaya; dp = priceSnapshot.dp; cicilan = priceSnapshot.cicilan;
+                }
+                $('#cash-price-summary').text(dp ? 'DP: Rp ' + dp.toLocaleString('id-ID') + ' | Cicilan: Rp ' + cicilan.toLocaleString('id-ID') + '/bulan' : '');
                 const container = $('#rincian-biaya').empty();
                 let total = 0;
                 rincian.forEach(cost => {
@@ -535,7 +565,8 @@
                     row.append(input).appendTo(container);
                 });
                 $('#total_harga').val(total.toLocaleString('id-ID'));
-            });
+            }
+            $('#id_kavling, #jenis_pembelian, #termin_x_cash_b').on('change input', refreshPrice);
             $('#booking_fee').on('input', function() {
                 const value = this.value.replace(/\D/g, '');
                 this.value = value ? Number(value).toLocaleString('id-ID') : '';
