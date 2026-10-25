@@ -130,9 +130,11 @@ class PengajuanHoldController extends Controller
 
     public function viewArsip(Request $request)
     {
+        $permissions = HakAksesController::getUserPermissions('pengajuan-hold.index');
 
         if ($request->ajax()) {
-            $data = PengajuanHold::with(['marketing', 'lokasi', 'kavling'])->where('stt_reg', 2)->get();
+            $data = PengajuanHold::with(['marketing', 'lokasi', 'kavling'])->whereIn('stt_reg', [2, 3])
+                ->orderByDesc('tgl_booking')->orderByDesc('id')->get();
 
             return DataTables::of($data)
                 ->addIndexColumn()
@@ -164,10 +166,16 @@ class PengajuanHoldController extends Controller
 
                     return $namaLokasi . '<br>' . $kodeKavling;
                 })
-                ->addColumn('action', function ($row) {
+                ->addColumn('action', function ($row) use ($permissions) {
                     $verifUrl  = route('pengajuan-hold.arsip.detail', $row->id);
                     $btn       = '<div class="text-start">';
                     $btn      .= '<a class="btn btn-primary btn-sm mr-1" href="' . e($verifUrl) . '">Detail</a>';
+                    if ((int) $row->stt_reg === 2) {
+                        $btn .= '<a class="btn btn-success btn-xs" target="_blank" rel="noopener" href="' . e(route('pengajuan-hold.cetak', $row->id)) . '"><i class="fas fa-print mr-1"></i>Cetak Tanda Terima</a>';
+                    }
+                    if ($permissions['hapus']) {
+                        $btn .= '<form action="' . e(route('pengajuan-hold.destroy', $row->id)) . '" method="POST" style="display:inline;">' . csrf_field() . method_field('DELETE') . '<button type="submit" class="delete-button btn btn-danger btn-xs ml-1">Hapus</button></form>';
+                    }
                     $btn      .= '</div>';
 
                     return $btn;

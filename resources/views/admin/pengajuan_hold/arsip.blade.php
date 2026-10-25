@@ -14,6 +14,7 @@
                             <div class="card-header p-3">
                                 <div class="d-flex align-content-center justify-content-between">
                                     <h3 class="font-weight-bold text-lg">Arsip Pengajuan Hold</h3>
+                                    <a href="{{ route('pengajuan-hold.index') }}" class="btn btn-secondary">Kembali</a>
                                 </div>
                             </div>
                             <div class="card-body">
@@ -43,6 +44,32 @@
 @push('scripts')
     <script>
         $(function() {
+            $(document).on('submit', '.data-table form', function(e) {
+                e.preventDefault();
+                const form = $(this);
+                Swal.fire({
+                    title: 'Hapus arsip ini?',
+                    text: 'Data pengajuan hold akan dihapus secara permanen.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, Hapus',
+                    cancelButtonText: 'Batal',
+                    showLoaderOnConfirm: true,
+                    allowOutsideClick: () => !Swal.isLoading(),
+                    preConfirm: () => $.ajax({
+                        url: form.attr('action'),
+                        method: 'POST',
+                        data: form.serialize()
+                    }).catch(() => {
+                        Swal.showValidationMessage('Gagal menghapus arsip. Silakan coba lagi.');
+                    })
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        table.ajax.reload(null, false);
+                        toastr.success('Arsip telah dihapus.');
+                    }
+                });
+            });
             var table = $('.data-table').DataTable({
                 processing: false,
                 serverSide: false,

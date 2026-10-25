@@ -66,7 +66,7 @@ class PengajuanHold extends Model
 
     public function scopeVerificationQueue($query)
     {
-        return $query->orderByRaw('CASE WHEN stt_reg = 1 THEN 0 ELSE 1 END')
+        return $query->where('stt_reg', 1)
             ->orderByDesc('tgl_booking')->orderByDesc('id');
     }
 

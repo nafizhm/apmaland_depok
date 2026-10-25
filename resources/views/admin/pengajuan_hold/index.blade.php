@@ -27,6 +27,9 @@
                             <div class="card-header p-3">
                                 <div class="d-flex align-content-center justify-content-between">
                                     <h3 class="font-weight-bold text-lg">Data Pengajuan Hold</h3>
+                                    <a href="{{ route('pengajuan-hold.arsip') }}" class="btn btn-secondary">
+                                        <i class="fas fa-archive mr-1" aria-hidden="true"></i>Arsip
+                                    </a>
                                 </div>
                             </div>
                             <div class="card-body">
