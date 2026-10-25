@@ -49,6 +49,9 @@ class KavlingPricing
     {
         $total = $unit->total_harga;
         $rincian = $unit->rincian_biaya ?? [];
+        if ($method === 'KPR') {
+            $total = (int) $unit->plafon_kpr;
+        }
         $dp = $installment = 0;
         $priced = $unit->harga_cash !== null && in_array($method, ['Pembelian Cash', 'Cash Bertahap'], true);
         if ($priced) {

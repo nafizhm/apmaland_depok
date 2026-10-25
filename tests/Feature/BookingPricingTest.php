@@ -37,7 +37,7 @@ class BookingPricingTest extends TestCase
         DB::table('lokasi_kavling')->insert(['id' => 6, 'nama_kavling' => 'paramita residence']);
         $row = json_decode(file_get_contents(database_path('data/paramita-harga-rev-2026-10-22.json')), true)[0];
         KavlingPeta::create(array_merge(array_intersect_key($row, KavlingPricing::FIELDS), [
-            'id_lokasi' => 6, 'kode_kavling' => 'B-11', 'rincian_biaya' => [['nama' => 'Harga Rumah', 'nilai' => 471900000]],
+            'id_lokasi' => 6, 'kode_kavling' => 'B-11', 'plafon_kpr' => 350000000, 'rincian_biaya' => [['nama' => 'Harga Rumah', 'nilai' => 471900000]],
         ]));
         Route::get('/_test/price/{id}', [PengajuanHoldController::class, 'getHargaKavling']);
         Route::post('/_test/book', [PengajuanHoldController::class, 'bookingStore']);
@@ -57,11 +57,30 @@ class BookingPricingTest extends TestCase
             $this->getJson('/_test/price/1?jenis_pembelian=Cash%20Bertahap&termin_x_cash_b=' . $tenor)
                 ->assertOk()->assertJsonPath('total_harga', $total)->assertJsonPath('quote.dp', 197500000)->assertJsonPath('quote.cicilan', $monthly);
         }
-        $this->getJson('/_test/price/1?jenis_pembelian=KPR')->assertOk()->assertJsonPath('total_harga', 471900000);
+        $this->getJson('/_test/price/1?jenis_pembelian=KPR')->assertOk()
+            ->assertJsonPath('total_harga', 350000000)
+            ->assertJsonPath('quote.total_harga', 350000000)
+            ->assertJsonPath('rincian_biaya.0.nilai', 471900000);
         foreach (['', '0', '4', '60'] as $tenor) {
             $this->getJson('/_test/price/1?jenis_pembelian=Cash%20Bertahap&termin_x_cash_b=' . $tenor)
                 ->assertUnprocessable()->assertJsonValidationErrors('termin_x_cash_b');
         }
+    }
+
+    public function test_kpr_booking_stores_only_the_plafon_as_total(): void
+    {
+        $payload = array_merge($this->payload(), ['jenis_pembelian' => 'KPR']);
+        $this->post('/_test/book', $payload, ['Accept' => 'application/json'])->assertOk();
+        $booking = PengajuanHold::firstOrFail();
+        $this->assertEquals(350000000, $booking->total_harga);
+        $this->assertSame(350000000, $booking->harga_snapshot['total_harga']);
+    }
+
+    public function test_kpr_without_plafon_cannot_use_the_house_price_as_total(): void
+    {
+        KavlingPeta::whereKey(1)->update(['plafon_kpr' => null]);
+        $this->getJson('/_test/price/1?jenis_pembelian=KPR')
+            ->assertUnprocessable()->assertJsonValidationErrors('id_kavling');
     }
 
     private function payload(): array

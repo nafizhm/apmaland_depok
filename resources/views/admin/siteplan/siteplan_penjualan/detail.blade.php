@@ -181,7 +181,7 @@
             priceList.append(row);
         });
         if (!prices.length) priceList.append($('<div class="detail-empty">').text('Rincian harga belum diisi.'));
-        $('#unitTotal').text(siteplanMoney(unit.total_harga));
+        $('#unitTotal').text(unit.plafon_kpr == null ? 'Belum ditentukan' : siteplanMoney(unit.plafon_kpr));
         $('#customerEmpty').toggleClass('d-none', !!customer);
         siteplanDetails('#customerDetails', customer ? [
             ['Nama lengkap', customer.nama_lengkap], ['NIK', customer.nik], ['Nomor telepon', customer.no_telp],

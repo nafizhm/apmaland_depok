@@ -46,6 +46,7 @@ class BookingVerificationTest extends TestCase
             $table->id();
             $table->integer('id_lokasi');
             $table->integer('id_customer')->nullable();
+            $table->integer('plafon_kpr')->nullable();
             $table->string('rincian_biaya');
             $table->timestamps();
         });
@@ -178,6 +179,7 @@ class BookingVerificationTest extends TestCase
 
     private function prepareApproval(): array
     {
+        DB::table('kavling_peta')->where('id', 1)->update(['plafon_kpr' => 120000000]);
         foreach ([new \App\Models\Pemasukan, new \App\Models\Piutang, new \App\Models\PersyaratanLegal, new \App\Models\UploudFile] as $model) {
             Schema::create($model->getTable(), function (Blueprint $table) use ($model) {
                 $table->id();
@@ -231,6 +233,10 @@ class BookingVerificationTest extends TestCase
             ->shouldReceive('generateNomorDokumen')->once()->andReturn('TEST-001');
         $this->post('/_test/booking/1', $payload, ['Accept' => 'application/json'])->assertOk();
         $this->assertDatabaseHas('customer', ['nama_lengkap' => 'Nama Diperbarui', 'nik' => '0012345678901234']);
+        $this->assertDatabaseHas('customer', ['total_harga' => 120000000]);
+        $this->assertDatabaseCount('piutang', 1);
+        $this->assertDatabaseHas('piutang', ['nominal' => 120000000]);
+        $this->assertDatabaseHas('pemasukan', ['nominal' => 1500000]);
         $data = PengajuanHold::findOrFail(1);
         $this->assertSame('2', $data->stt_reg);
         $this->assertFileExists(public_path('assets/customer/' . $data->foto_ktp));

@@ -134,7 +134,7 @@ class SiteplanPenjualanController extends Controller
             'luas_tanah'    => $kavling->luas_tanah ?? '-',
             'luas_bangunan' => $kavling->luas_bangunan ?? '-',
             'daya_listrik'  => $kavling->daya_listrik ?? '-',
-            'harga'         => (int) ($kavling->hrg_jual ?? 0),
+            'harga'         => $kavling->plafon_kpr,
             'no_sertifikat' => $kavling->no_sertifikat ?? '-',
             'foto'          => null,
         ];
@@ -164,7 +164,7 @@ class SiteplanPenjualanController extends Controller
             'luas_tanah'    => $request->luas_tanah ?? '-',
             'luas_bangunan' => $request->luas_bangunan ?? '-',
             'daya_listrik'  => $request->daya_listrik ?? '-',
-            'harga'         => $kavling->total_harga,
+            'harga'         => $kavling->plafon_kpr,
             'no_sertifikat' => $request->no_sertifikat ?? '-',
             'foto'          => null,
         ];
@@ -232,7 +232,7 @@ class SiteplanPenjualanController extends Controller
         foreach ($kavling->rincian_biaya ?? [] as $biaya) {
             $this->rowData($pdf, $biaya['nama'] ?? '-', 'Rp ' . number_format((float) ($biaya['nilai'] ?? 0), 0, ',', '.'));
         }
-        $this->rowData($pdf, 'Total Harga', 'Rp ' . number_format($kavlingData['harga'], 0, ',', '.'));
+        $this->rowData($pdf, 'Total Harga', $kavlingData['harga'] === null ? 'Belum ditentukan' : 'Rp ' . number_format($kavlingData['harga'], 0, ',', '.'));
         $pdf->Ln(2);
 
         $pdf->SetFont('times', 'BU', 12);

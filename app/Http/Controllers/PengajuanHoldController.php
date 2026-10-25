@@ -535,7 +535,7 @@ class PengajuanHoldController extends Controller
 
         $quote = \App\Services\KavlingPricing::quote($data, $request->input('jenis_pembelian'), $request->input('termin_x_cash_b'), $request->input('dp_persen', 50));
         $rincian = $quote['rincian_biaya'];
-        $total   = collect($rincian)->sum('nilai');
+        $total   = $quote['total_harga'];
 
         $formatted = [];
         foreach ($rincian as $item) {
@@ -1071,7 +1071,7 @@ class PengajuanHoldController extends Controller
             $tenor = $validated['termin_x_cash_b'] ?? $data->termin_x_cash_b;
             $snapshot = $data->harga_snapshot;
             $dpPercent = $validated['dp_persen'] ?? ($snapshot['dp_persen'] ?? 50);
-            if ($snapshot && (int) $snapshot['id_kavling'] === (int) $kavling->id
+            if ($method !== 'KPR' && $snapshot && (int) $snapshot['id_kavling'] === (int) $kavling->id
                 && $snapshot['jenis_pembelian'] === $method
                 && ($method !== 'Cash Bertahap' || (int) ($snapshot['dp_persen'] ?? 50) === (int) $dpPercent)
                 && (int) $snapshot['tenor'] === ($method === 'Cash Bertahap' ? (int) $tenor : 0)) {
@@ -1127,9 +1127,9 @@ class PengajuanHoldController extends Controller
                 $customer = $this->createCustomer($data->id, $request);
                 $tglNow   = Carbon::now('Asia/Jakarta')->toDateString();
 
-                $rincian = $data->rincian_biaya ?? [];
-                $bookingFee = (int) ($data->booking_fee ?? 0);
-                $sisaBayar  = $data->total_harga - $bookingFee;
+                $rincian = $method === 'KPR'
+                    ? [['nama' => 'Plafon Kredit KPR', 'nilai' => $quote['total_harga']]]
+                    : ($data->rincian_biaya ?? []);
 
                 foreach ($rincian as $item) {
                     $nama  = $item['nama'] ?? '';
