@@ -93,6 +93,29 @@ class BookingPricingTest extends TestCase
             'termin_x_cash_b' => 12, 'foto_ktp' => UploadedFile::fake()->image('ktp.jpg')];
     }
 
+    public function test_discount_reduces_total_and_installments_and_survives_verification(): void
+    {
+        $payload = array_merge($this->payload(), ['diskon' => '12.000.000']);
+        $this->getJson('/_test/price/1?jenis_pembelian=Cash%20Bertahap&termin_x_cash_b=12&diskon=12.000.000')
+            ->assertOk()->assertJsonPath('total_harga', 418550000)->assertJsonPath('quote.cicilan', 18420833);
+        $this->post('/_test/book', $payload, ['Accept' => 'application/json'])->assertOk();
+        $booking = PengajuanHold::firstOrFail();
+        $this->assertSame(12000000, $booking->harga_snapshot['diskon']);
+        $this->assertEquals(418550000, $booking->total_harga);
+        unset($payload['foto_ktp']);
+        $this->postJson('/_test/verify/' . $booking->id, array_merge($payload, ['tgl_booking' => '2026-10-22', 'stt_reg' => 1]))->assertOk();
+        $this->assertEquals(418550000, $booking->fresh()->total_harga);
+    }
+
+    public function test_invalid_discounts_are_rejected(): void
+    {
+        foreach (['-1', 'abc', '430550000', '9999999999999'] as $discount) {
+            $this->post('/_test/book', array_merge($this->payload(), ['diskon' => $discount]), ['Accept' => 'application/json'])
+                ->assertUnprocessable()->assertJsonValidationErrors('diskon');
+        }
+        $this->assertDatabaseCount('pengajuan_hold', 0);
+    }
+
     public function test_booking_recalculates_tampered_total_and_keeps_price_snapshot_during_verification(): void
     {
         $this->post('/_test/book', $this->payload(), ['Accept' => 'application/json'])->assertOk();

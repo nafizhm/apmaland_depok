@@ -33,6 +33,29 @@ class KavlingPricing
         return array_merge(self::FIELDS, self::DP30_FIELDS);
     }
 
+    public static function withDiscount(array $quote, $discount): array
+    {
+        $discount = str_replace('.', '', (string) ($discount ?? 0));
+        if (!preg_match('/^\d{1,12}$/', $discount)) {
+            throw ValidationException::withMessages(['diskon' => 'Diskon harus berupa nominal rupiah positif atau nol.']);
+        }
+        $discount = (int) $discount;
+        $total = (int) $quote['total_harga'];
+        if ($discount >= $total) {
+            throw ValidationException::withMessages(['diskon' => 'Diskon harus lebih kecil dari total harga.']);
+        }
+        if (!$discount) return $quote;
+        $quote['harga_sebelum_diskon'] = $total;
+        $quote['diskon'] = $discount;
+        $quote['total_harga'] = $total - $discount;
+        $quote['rincian_biaya'][] = ['nama' => 'Diskon', 'nilai' => -$discount];
+        if ($quote['jenis_pembelian'] === 'Cash Bertahap' && $quote['dp'] > 0) {
+            $quote['dp'] = min($quote['dp'], $quote['total_harga']);
+            $quote['cicilan'] = (int) round(($quote['total_harga'] - $quote['dp']) / $quote['tenor']);
+        }
+        return $quote;
+    }
+
     public static function dp30Prices(array $prices): array
     {
         $dp = (int) round((int) $prices['harga_cash'] * 30 / 100);

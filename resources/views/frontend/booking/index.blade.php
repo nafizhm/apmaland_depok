@@ -647,6 +647,16 @@
                                     </div>
                                 </div>
 
+                                <div class="form-group row">
+                                    <label class="control-label col-sm-3" for="diskon">Diskon</label>
+                                    <div class="col-sm-4">
+                                        <div class="input-group">
+                                            <div class="input-group-prepend"><span class="input-group-text">Rp.</span></div>
+                                            <input type="text" name="diskon" id="diskon" class="form-control" inputmode="numeric" maxlength="15" value="0">
+                                        </div>
+                                        <small class="text-muted">Mengurangi total harga pembelian.</small>
+                                    </div>
+                                </div>
                                 <div id="rincian-harga-container">
                                     <div class="text-muted">Pilih kavling terlebih dahulu untuk menampilkan rincian harga.</div>
                                 </div>
@@ -886,7 +896,7 @@
                 .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         }
 
-        $(document).on('input', '#booking_fee', function() {
+        $(document).on('input', '#booking_fee, #diskon', function() {
             let nilai = $(this).val();
             let terformat = formatAngkaRibuan(nilai);
             $(this).val(terformat);
@@ -1000,7 +1010,7 @@
 
                 let html = '';
                 rincian.forEach(function(item) {
-                    if ((item.nilai || 0) <= 0) return;
+                    if (!item.nilai) return;
                     html += '<div class="form-group row">';
                     html += '<label class="control-label col-sm-3">' + $('<div>').text(item.nama).html() + '</label>';
                     html += '<div class="col-sm-4">';
@@ -1065,6 +1075,7 @@
                 priceRequest = $.get(routeGetHarga.replace(':id', id), {
                     jenis_pembelian: method,
                     termin_x_cash_b: bertahap ? $('#termin_x_cash_b').val() : '',
+                    diskon: $('#diskon').val() || 0,
                     dp_persen: bertahap ? $('#dp_persen').val() : 50
                 }).done(function(data) {
                     if (version !== priceVersion) return;
@@ -1114,7 +1125,7 @@
                 });
             }
             $('#id_kavling, #jenis_pembelian, #termin_x_cash_b, #dp_persen').on('change', refreshHarga);
-            $('#booking_fee').on('change', refreshHarga);
+            $('#booking_fee, #diskon').on('change', refreshHarga);
 
         });
 

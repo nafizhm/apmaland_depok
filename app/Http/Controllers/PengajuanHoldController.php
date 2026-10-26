@@ -534,6 +534,7 @@ class PengajuanHoldController extends Controller
         $data = KavlingPeta::findOrFail($id);
 
         $quote = \App\Services\KavlingPricing::quote($data, $request->input('jenis_pembelian'), $request->input('termin_x_cash_b'), $request->input('dp_persen', 50));
+        $quote = \App\Services\KavlingPricing::withDiscount($quote, $request->input('diskon', 0));
         $rincian = $quote['rincian_biaya'];
         $total   = $quote['total_harga'];
 
@@ -685,6 +686,7 @@ class PengajuanHoldController extends Controller
             }
 
             $quote = \App\Services\KavlingPricing::quote($kavling, $request->jenis_pembelian, $request->termin_x_cash_b, $request->input('dp_persen', 50));
+        $quote = \App\Services\KavlingPricing::withDiscount($quote, $request->input('diskon', 0));
 
             $folder = public_path('assets/booking');
 
@@ -1078,6 +1080,7 @@ class PengajuanHoldController extends Controller
                 $quote = $snapshot;
             } else {
                 $quote = \App\Services\KavlingPricing::quote($kavling, $method, $tenor, $dpPercent);
+                $quote = \App\Services\KavlingPricing::withDiscount($quote, $snapshot['diskon'] ?? 0);
             }
             $bookingValues['total_harga'] = $quote['total_harga'];
             $bookingValues['harga_snapshot'] = $quote;
