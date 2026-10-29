@@ -25,6 +25,7 @@ class SpprTemplateTest extends TestCase
         Schema::create('lokasi_kavling', function (Blueprint $table) {
             $table->id();
             $table->boolean('is_cluster')->default(false);
+            $table->string('alamat')->nullable();
         });
         Schema::create('kavling_peta', function (Blueprint $table) {
             $table->id();
@@ -49,6 +50,7 @@ class SpprTemplateTest extends TestCase
             $table->id(); $table->string('jenis_data'); $table->boolean('stt_aktif'); $table->string('nama_file');
         });
         (require database_path('migrations/2026_10_22_120000_add_spr_template_data.php'))->up();
+        (require database_path('migrations/2026_10_29_120000_add_spr_letterhead_to_lokasi_kavling.php'))->up();
         DB::table('lokasi_kavling')->insert(['id' => 1]);
         DB::table('kavling_peta')->insert(['id' => 1, 'kode_kavling' => 'B-7', 'luas_bangunan' => 80, 'luas_tanah' => 84]);
         DB::table('customer')->insert(['id' => 1, 'id_kavling' => 1, 'id_lokasi' => 1]);
@@ -80,6 +82,26 @@ class SpprTemplateTest extends TestCase
         $this->getJson('/_test/sppr/1/edit')->assertOk()->assertJsonPath('data.luas_tanah', 90);
         $this->putJson('/_test/sppr/1', $this->payload())->assertOk();
         $this->assertDatabaseHas('sppr', ['id' => 1, 'luas_tanah' => 90]);
+    }
+
+    public function test_print_letterhead_uses_current_location_instead_of_saved_spr_contact(): void
+    {
+        $this->postJson('/_test/sppr', $this->payload())->assertOk();
+        DB::table('lokasi_kavling')->where('id', 1)->update([
+            'alamat' => 'Alamat Kop Terbaru', 'no_telp' => '081122334455',
+        ]);
+        $spr = SPPR::findOrFail(1)->load('customer.lokasi', 'customer.kavling');
+        $html = view('admin.transaksi.sppr.print', [
+            'spr' => $spr,
+            'unit' => ['blok' => 'B', 'no' => '7', 'luas_tanah' => 84, 'luas_bangunan' => 80],
+            'data' => ['alamat_perumahan' => 'Alamat Lama', 'telepon_perumahan' => 'Telepon Lama'],
+            'totals' => \App\Services\SprDocument::totals($spr),
+        ])->render();
+        $this->assertStringContainsString('Alamat Kop Terbaru', $html);
+        $this->assertStringContainsString('081122334455', $html);
+        $this->assertStringNotContainsString('Alamat Lama', $html);
+        $this->assertStringNotContainsString('Telepon Lama', $html);
+        $this->assertStringNotContainsString('logo-paramita.jpg', $html);
     }
 
     public function test_customer_without_kavling_cannot_save(): void
@@ -132,7 +154,25 @@ class SpprTemplateTest extends TestCase
         $this->postJson('/_test/sppr', $payload)->assertUnprocessable()->assertJsonValidationErrors('spr_data.tanggal_booking');
     }
 
-    public function test_print_produces_a_single_page_pdf_with_all_template_sections(): void
+    public function test_print_uses_saved_unit_when_customer_has_no_kavling(): void
+    {
+        $this->postJson('/_test/sppr', $this->payload())->assertOk();
+        DB::table('customer')->where('id', 1)->update(['id_kavling' => null]);
+
+        \Barryvdh\DomPDF\Facade\Pdf::shouldReceive('loadView')
+            ->once()
+            ->with('admin.transaksi.sppr.print', \Mockery::on(fn ($data) =>
+                $data['unit'] === ['blok' => 'B', 'no' => '7', 'luas_bangunan' => 80, 'luas_tanah' => 84]
+            ))
+            ->andReturnSelf();
+        \Barryvdh\DomPDF\Facade\Pdf::shouldReceive('setPaper')->once()->with('a4')->andReturnSelf();
+        \Barryvdh\DomPDF\Facade\Pdf::shouldReceive('setOptions')->once()->andReturnSelf();
+        \Barryvdh\DomPDF\Facade\Pdf::shouldReceive('stream')->once()->andReturn(response('%PDF-test'));
+
+        $this->assertSame('%PDF-test', app(SPPRController::class)->cetak(1)->getContent());
+    }
+
+    public function test_print_produces_two_page_pdf_with_template_and_terms(): void
     {
         $this->postJson('/_test/sppr', $this->payload())->assertOk();
         $spr = SPPR::findOrFail(1);
@@ -150,10 +190,16 @@ class SpprTemplateTest extends TestCase
         }
         $this->assertStringContainsString('Pembeli &amp; Keluarga', $html);
         $this->assertStringNotContainsString('RIKI KRIESNA', $html);
+        foreach (['H. PEMBAYARAN', 'I. KELEBIHAN TANAH', 'J. PEMBATALAN', 'K. KREDIT PEMILIKAN RUMAH DI BANK', 'L. PENYELESAIAN RUMAH', 'M. PERBAIKAN RUMAH', 'N. SERAH TERIMA', 'O. RENOVASI', 'P. GANTI NAMA', 'Q. PENUTUP'] as $section) {
+            $this->assertStringContainsString($section, $html);
+        }
+        $this->assertStringNotContainsString('YOGA AGUSTIAN PUTRA', $html);
+        $this->assertStringContainsString('dipotong 50%', $html);
+        $this->assertStringContainsString('Meterai', $html);
         $response = app(SPPRController::class)->cetak(1);
         $this->assertStringStartsWith('%PDF-', $response->getContent());
         $this->assertStringContainsString('SPR_', $response->headers->get('Content-Disposition'));
         $parser = new \setasign\Fpdi\Tcpdf\Fpdi();
-        $this->assertSame(1, $parser->setSourceFile(\setasign\Fpdi\PdfParser\StreamReader::createByString($response->getContent())));
+        $this->assertSame(2, $parser->setSourceFile(\setasign\Fpdi\PdfParser\StreamReader::createByString($response->getContent())));
     }
 }

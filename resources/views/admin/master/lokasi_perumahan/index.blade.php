@@ -57,7 +57,7 @@
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
-                <form id="formData">
+                <form id="formData" enctype="multipart/form-data">
                     @csrf
                     <div class="modal-body">
                         <input type="hidden" name="primary_id" id="primary_id">
@@ -93,6 +93,22 @@
                             <label class="col-sm-2 col-form-label">Alamat</label>
                             <div class="col-sm-8">
                                 <textarea name="alamat" id="alamat" class="form-control" rows="3"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label for="no_telp" class="col-sm-2 col-form-label">No. Telepon</label>
+                            <div class="col-sm-8">
+                                <input type="text" name="no_telp" id="no_telp" class="form-control" maxlength="100">
+                                <small class="text-muted">Nomor telepon dan alamat di atas digunakan pada kop surat SPR.</small>
+                            </div>
+                        </div>
+                        <div class="form-group row">
+                            <label for="logo" class="col-sm-2 col-form-label">Logo SPR</label>
+                            <div class="col-sm-8">
+                                <input type="file" name="logo" id="logo" class="form-control" accept="image/png,image/jpeg">
+                                <small class="text-muted">Logo kiri kop SPR. JPG/PNG maksimal 2 MB. Kosongkan untuk tetap menggunakan logo tersimpan.</small>
+                                <img id="logo-preview" class="d-none mt-2" style="max-width: 180px; max-height: 80px;" alt="Logo lokasi">
                             </div>
                         </div>
 
@@ -267,6 +283,9 @@
                     $('#nama_singkat').val(response.data.nama_singkat);
                     $('#header').val(response.data.header);
                     $('#alamat').val(response.data.alamat);
+                    $('#no_telp').val(response.data.no_telp);
+                    $('#logo').val('');
+                    $('#logo-preview').toggleClass('d-none', !response.data.logo).attr('src', response.data.logo ? @json(asset('assets/lokasi_perumahan/logo')) + '/' + response.data.logo : '');
                     $('#urutan').val(response.data.urutan);
                     $('#no_kwitansi').val(response.data.no_kwitansi);
                     $('#no_bast').val(response.data.no_bast);
@@ -287,6 +306,7 @@
 
         $('#modalForm').on('hidden.bs.modal', function() {
             $('#formData')[0].reset();
+            $('#logo-preview').addClass('d-none').removeAttr('src');
             $('.lokasi-legacy-field').show().find('input, select').prop('disabled', false);
 
             $('.is-invalid').removeClass('is-invalid');

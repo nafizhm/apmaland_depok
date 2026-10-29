@@ -81,6 +81,8 @@ class LokasiKavlingController extends Controller
             'nama_kavling'    => 'required',
             'nama_singkat'    => 'required',
             'alamat'          => 'required',
+            'no_telp'         => 'nullable|string|max:100',
+            'logo'            => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'header'          => 'required',
             'urutan'          => 'required',
             'stt_tampil'      => 'required',
@@ -117,6 +119,7 @@ class LokasiKavlingController extends Controller
                 'nama_kavling' => $request->nama_kavling,
                 'nama_singkat' => $request->nama_singkat,
                 'alamat'       => $request->alamat,
+                'no_telp'      => $request->no_telp,
                 'urutan'       => $request->urutan,
                 'header'       => $request->header,
                 'stt_tampil'   => $request->stt_tampil,
@@ -126,6 +129,7 @@ class LokasiKavlingController extends Controller
                 'no_ppjb'      => $request->no_ppjb,
                 'reset_nomor'  => $request->reset_nomor,
             ]);
+            $this->saveLogo($request, $lokasi);
             $this->logCreate('Lokasi Perumahan', $lokasi->id);
 
             foreach ($request->id_perusahaan as $perusahaan) {
@@ -149,6 +153,16 @@ class LokasiKavlingController extends Controller
         }
     }
 
+    private function saveLogo(Request $request, LokasiKavling $lokasi): void
+    {
+        if ($request->hasFile('logo')) {
+            $file = $request->file('logo');
+            $filename = $file->hashName();
+            $file->move(public_path('assets/lokasi_perumahan/logo'), $filename);
+            $lokasi->update(['logo' => $filename]);
+        }
+    }
+
     public function edit($id)
     {
         $data = LokasiKavling::with('perusahaan')->find($id);
@@ -165,6 +179,8 @@ class LokasiKavlingController extends Controller
             'nama_kavling'    => 'required',
 
             'alamat'          => 'required',
+            'no_telp'         => 'nullable|string|max:100',
+            'logo'            => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
 
             'urutan'          => 'required',
 
@@ -204,6 +220,7 @@ class LokasiKavlingController extends Controller
                 'nama_kavling' => $request->nama_kavling,
 
                 'alamat'       => $request->alamat,
+                'no_telp'      => $request->no_telp,
                 'urutan'       => $request->urutan,
 
                 'is_cluster'   => $request->is_cluster,
@@ -213,6 +230,7 @@ class LokasiKavlingController extends Controller
                 'reset_nomor'  => $request->reset_nomor,
             ]);
 
+            $this->saveLogo($request, $lokasi);
             $this->logEdit('Lokasi Perumahan', $lokasi->id);
 
             if ($oldNoKwitansi !== $request->no_kwitansi) {

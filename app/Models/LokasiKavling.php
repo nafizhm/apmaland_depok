@@ -17,6 +17,8 @@ class LokasiKavling extends Model
         'nama_kavling',
         'nama_singkat',
         'alamat',
+        'no_telp',
+        'logo',
         'urutan',
         'header',
         'stt_tampil',

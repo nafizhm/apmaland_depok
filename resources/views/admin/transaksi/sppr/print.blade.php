@@ -19,6 +19,20 @@
         .bold { font-weight: bold; }
         .schedule td { height: 11px; }
         .small { font-size: 7px; }
+        .spr-terms { page-break-before: always; font-size: 7.5px; line-height: 1.1; }
+        .spr-terms h2 { text-align: center; font-size: 13px; margin: 0 0 7px; }
+        .spr-terms h2 span { display: block; font-size: 10px; margin-top: 2px; }
+        .spr-terms h3 { font-size: 8.5px; margin: 3px 0 1px; page-break-after: avoid; }
+        .spr-terms p { margin: 1px 0 2px 16px; }
+        .term-item { position: relative; padding-left: 18px; margin: 0 0 1px 8px; text-align: justify; page-break-inside: avoid; }
+        .term-number { position: absolute; left: 0; top: 0; width: 15px; }
+        .terms-signatures { margin-top: 7px; page-break-inside: avoid; }
+        .terms-signatures td { border: .5pt solid #000; text-align: center; padding: 2px 4px; }
+        .terms-signatures .signature-boxes td { height: 150px; vertical-align: top; position: relative; }
+        .signature-date { text-align: left; }
+        .terms-signatures .signature-name { position: absolute; bottom: 5px; left: 4px; right: 4px; text-align: center; }
+        .terms-signatures .signature-roles td { height: 12px; font-size: 7px; }
+        .stamp-label { display: block; margin: 55px auto 0; color: #666; font-size: 7px; }
     </style>
 </head>
 <body>
@@ -28,17 +42,18 @@
     $kpr = ($data['jenis_pembelian'] ?? 'KPR') === 'KPR';
     $schedule = array_values($data['angsuran'] ?? []);
     $project = $data['nama_perumahan'] ?? $spr->customer?->lokasi?->nama_kavling ?? '';
-    $projectLogo = public_path('assets/images/logo-paramita.jpg');
+    $lokasi = $spr->customer?->lokasi;
+    $projectLogo = $lokasi?->logo ? public_path('assets/lokasi_perumahan/logo/' . basename($lokasi->logo)) : '';
     $companyLogo = public_path('assets/images/logo-apmaland-panjang.jpg');
     $embedLogo = fn ($path) => 'data:' . mime_content_type($path) . ';base64,' . base64_encode(file_get_contents($path));
 @endphp
 <table class="header">
     <tr>
-        <td style="width: 23%;">@if (is_file($projectLogo))<img src="{{ $embedLogo($projectLogo) }}" alt="Pramita Residence">@else{{ $project }}@endif</td>
+        <td style="width: 23%;">@if (is_file($projectLogo))<img src="{{ $embedLogo($projectLogo) }}" alt="{{ $project }}">@else{{ $project }}@endif</td>
         <td style="width: 54%;">
             <h2>{{ mb_strtoupper($project) }}</h2>
-            Alamat: {{ $data['alamat_perumahan'] ?? $spr->customer?->lokasi?->alamat ?? '' }}<br>
-            HP: {{ $data['telepon_perumahan'] ?? '' }}
+            Alamat: {{ $lokasi ? $lokasi->alamat : ($data['alamat_perumahan'] ?? '') }}<br>
+            HP: {{ $lokasi ? $lokasi->no_telp : ($data['telepon_perumahan'] ?? '') }}
         </td>
         <td style="width: 23%;">@if (is_file($companyLogo))<img src="{{ $embedLogo($companyLogo) }}" alt="Apmaland Property">@endif</td>
     </tr>
@@ -104,5 +119,6 @@
     <tr><td>Harga Jual Pada Saat<br>Transaksi Belum Termasuk</td>
         @foreach ([1, 2, 3] as $number)<td>{{ $number }} &nbsp; {{ $data['promo_belum_' . $number] ?? '' }}</td>@endforeach</tr>
 </table>
+@include('admin.transaksi.sppr.terms')
 </body>
 </html>

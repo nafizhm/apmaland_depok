@@ -81,6 +81,7 @@ class SPPRController extends Controller
             'email' => $customer->email ?? '',
             'nama_perumahan' => $customer->lokasi?->nama_kavling ?? '',
             'alamat_perumahan' => $customer->lokasi?->alamat ?? '',
+            'telepon_perumahan' => $customer->lokasi?->no_telp ?? '',
             'tipe_rumah' => $customer->kavling?->tipe_bangunan ?? '',
             'id_rumah' => $customer->kavling?->id_rumah_sikumbang ?? '',
             'asumsi_plafon_kpr' => $customer->estimasi_plafon ?? 0,
@@ -184,8 +185,10 @@ class SPPRController extends Controller
     public function cetak($id)
     {
         $spr = SPPR::with(['customer.lokasi', 'customer.kavling'])->findOrFail($id);
-        abort_unless($spr->customer?->kavling, 422, 'Data kavling customer belum tersedia.');
-        $unit = $this->kavlingData($spr->customer);
+        // Dokumen lama tetap dapat dicetak dari data unit yang tersimpan di SPR.
+        $unit = $spr->customer?->kavling
+            ? $this->kavlingData($spr->customer)
+            : $spr->only(['blok', 'no', 'luas_bangunan', 'luas_tanah']);
         $data = $spr->spr_data ?? [];
         $totals = SprDocument::totals($spr);
         $logo = \App\Models\PengaturanMedia::where('jenis_data', 'Logo Aplikasi')->where('stt_aktif', 1)->first();
